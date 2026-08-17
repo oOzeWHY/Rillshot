@@ -1,0 +1,22 @@
+name: 功能建议
+description: 说明一个用户问题与建议边界
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 需要解决的问题
+      description: 请先描述场景，而不是只给出控件或实现方式。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已尝试的替代方案

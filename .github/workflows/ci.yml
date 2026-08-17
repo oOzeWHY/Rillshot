@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-linux:
+    name: Core / GCC / Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Check repository
+        run: |
+          node tools/check_project_consistency.mjs
+          node tools/check_human_docs_language.mjs
+      - name: Configure
+        run: cmake --preset core-release
+      - name: Build
+        run: cmake --build --preset core-release
+      - name: Test
+        run: ctest --preset core-release
+
+  core-sanitizers:
+    name: Core / GCC / ASan+UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configure
+        run: cmake --preset core-sanitize
+      - name: Build
+        run: cmake --build --preset core-sanitize
+      - name: Test
+        run: ctest --preset core-sanitize
+
+  windows-native:
+    name: Native adapters / MSVC
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check PowerShell syntax
+        shell: powershell
+        run: .\tools\check_powershell_syntax.ps1
+      - name: Configure
+        run: >-
+          cmake -S . -B out/build/windows-native -A x64
+          -DRILLSHOT_BUILD_TESTS=ON
+          -DRILLSHOT_BUILD_WINDOWS_APPS=ON
+          -DRILLSHOT_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build out/build/windows-native --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir out/build/windows-native -C Release --output-on-failure

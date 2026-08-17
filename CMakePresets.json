@@ -1,0 +1,65 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "core-release",
+      "displayName": "Core Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/core-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "RILLSHOT_BUILD_TESTS": "ON",
+        "RILLSHOT_BUILD_WINDOWS_APPS": "OFF",
+        "RILLSHOT_WARNINGS_AS_ERRORS": "ON",
+        "RILLSHOT_ENABLE_SANITIZERS": "OFF"
+      }
+    },
+    {
+      "name": "core-sanitize",
+      "displayName": "Core Debug with sanitizers",
+      "inherits": "core-release",
+      "binaryDir": "${sourceDir}/out/build/core-sanitize",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RILLSHOT_ENABLE_SANITIZERS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "core-release",
+      "configurePreset": "core-release",
+      "jobs": 2
+    },
+    {
+      "name": "core-sanitize",
+      "configurePreset": "core-sanitize",
+      "jobs": 2
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "core-release",
+      "configurePreset": "core-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "core-sanitize",
+      "configurePreset": "core-sanitize",
+      "output": {
+        "outputOnFailure": true
+      },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:strict_string_checks=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      }
+    }
+  ]
+}

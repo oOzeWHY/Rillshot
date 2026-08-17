@@ -1,0 +1,38 @@
+#pragma code_page(65001)
+
+#include "resource.h"
+#include <winver.h>
+
+IDI_RILLSHOT_APP_ICON ICON "Assets\\Rillshot.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,1,9,0
+PRODUCTVERSION 1,1,9,0
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "Rillshot scrolling screenshot tool"
+            VALUE "FileVersion", "1.1.9.0"
+            VALUE "InternalName", "Rillshot.WinUI"
+            VALUE "LegalCopyright", "Copyright © 2026 Rillshot contributors"
+            VALUE "OriginalFilename", "Rillshot.WinUI.exe"
+            VALUE "ProductName", "Rillshot"
+            VALUE "ProductVersion", "1.1.9.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

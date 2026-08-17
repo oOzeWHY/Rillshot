@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7F514E30-B82B-47C1-8F31-8D6B6855197E}</ProjectGuid>
+    <ProjectName>Rillshot.WinUI</ProjectName>
+    <RootNamespace>Rillshot.WinUI</RootNamespace>
+    <MinimalCoreWin>true</MinimalCoreWin>
+    <DefaultLanguage>zh-CN</DefaultLanguage>
+    <MinimumVisualStudioVersion>18.7</MinimumVisualStudioVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion>
+    <!-- Visual Studio 18.7+ 的原生 C++ PackageReference 支持需要显式启用。 -->
+    <EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
+    <ApplicationType>Windows Store</ApplicationType>
+    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
+    <AppContainerApplication>false</AppContainerApplication>
+    <!-- Portable is the default executable distribution. Pass
+         /p:RillshotDistribution=Msix for the packaged build. -->
+    <RillshotDistribution Condition="'$(RillshotDistribution)'==''">Portable</RillshotDistribution>
+    <AppxPackage Condition="'$(RillshotDistribution)'=='Portable'">false</AppxPackage>
+    <AppxPackage Condition="'$(RillshotDistribution)'=='Msix'">true</AppxPackage>
+    <WindowsPackageType Condition="'$(RillshotDistribution)'=='Portable'">None</WindowsPackageType>
+    <WindowsAppSDKSelfContained Condition="'$(RillshotDistribution)'=='Portable'">true</WindowsAppSDKSelfContained>
+    <!-- Native .vcxproj uses ConfigurationType rather than the OutputType property
+         used by the Windows App SDK default condition. Keep reg-free WinRT startup
+         explicit for the unpackaged self-contained executable. -->
+    <WindowsAppSdkUndockedRegFreeWinRTInitialize Condition="'$(RillshotDistribution)'=='Portable'">true</WindowsAppSdkUndockedRegFreeWinRTInitialize>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <CppWinRTOptimized>true</CppWinRTOptimized>
+    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
+    <TargetName>$(RootNamespace)</TargetName>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DesktopCompatible>true</DesktopCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <LinkIncremental>false</LinkIncremental>
+    <TreatWarningAsError>true</TreatWarningAsError>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <Import Project="HybridCRT.props" Condition="'$(RillshotDistribution)'=='Portable'" />
+
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <!-- mdmerge 不能可靠处理非 ASCII 响应文件路径。发行脚本要求源码位于纯 ASCII 路径，
+         因而可把所有 CppWinRT 中间文件和输出保留在源码 artifacts 内。 -->
+    <RillshotBuildRoot Condition="'$(RillshotBuildRoot)'==''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\artifacts\build\winui-intermediate'))</RillshotBuildRoot>
+    <OutDir>$(RillshotBuildRoot)\$(ProjectName)\$(RillshotDistribution)\$(Platform)\$(Configuration)\bin\</OutDir>
+    <IntDir>$(RillshotBuildRoot)\$(ProjectName)\$(RillshotDistribution)\$(Platform)\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>..\..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>d3d11.lib;dxgi.lib;dwmapi.lib;gdi32.lib;user32.lib;windowscodecs.lib;ole32.lib;shcore.lib;shell32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </ApplicationDefinition>
+    <Page Include="MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Midl Include="MainWindow.idl">
+      <SubType>Code</SubType>
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Midl>
+    <AppxManifest Include="Package.appxmanifest" Condition="'$(RillshotDistribution)'=='Msix'">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <Manifest Include="app.manifest" />
+    <ResourceCompile Include="Rillshot.rc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="App.xaml.cpp">
+      <DependentUpon>App.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.xaml.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.Capture.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.Preferences.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.PreferencePersistence.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.Navigation.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.Navigation.Animation.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.Presentation.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.Selection.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
+    <ClCompile Include="..\..\src\capture\DxgiCaptureBackend.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\capture\GdiCaptureBackend.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\core\Image.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\core\ImageMetrics.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\core\Json.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\CaptureController.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\CaptureSummary.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\CaptureWorkflow.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\GuiConfig.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\GuiStrings.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\GlobalHotkey.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\SelectionOverlay.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\SelectionOverlay.Rendering.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\SelectionOverlay.Snapshot.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\WindowsShellUtils.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\input\KeyboardDriver.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\input\ManualDriver.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\input\WheelDriver.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\output\WicImageWriter.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\platform\AppPaths.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\platform\WinDpi.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\platform\StartupDiagnostics.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\platform\UserPreferences.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\platform\WinUtf.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\session\CaptureSession.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\session\CaptureSessionOptions.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\session\SessionCaptureSupport.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\session\SessionDiagnostics.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\session\SessionInputSupport.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\session\SessionOutputSupport.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\stitch\StitchEngine.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="App.xaml.h">
+      <DependentUpon>App.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="MainWindow.xaml.h">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="MainWindow.Navigation.Motion.h">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="MainWindow.WindowSizing.h">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="..\..\src\capture\ICaptureBackend.h" />
+    <ClInclude Include="..\..\src\gui\CaptureController.h" />
+    <ClInclude Include="..\..\src\gui\CaptureSummary.h" />
+    <ClInclude Include="..\..\src\gui\CaptureWorkflow.h" />
+    <ClInclude Include="..\..\src\gui\GuiConfig.h" />
+    <ClInclude Include="..\..\src\gui\GuiStrings.h" />
+    <ClInclude Include="..\..\src\gui\GlobalHotkey.h" />
+    <ClInclude Include="..\..\src\gui\HotkeyBinding.h" />
+    <ClInclude Include="..\..\src\gui\SelectionLifecycle.h" />
+    <ClInclude Include="..\..\src\gui\SelectionOverlay.h" />
+    <ClInclude Include="..\..\src\gui\SelectionVisuals.h" />
+    <ClInclude Include="..\..\src\gui\WindowGeometry.h" />
+    <ClInclude Include="..\..\src\gui\WindowsShellUtils.h" />
+    <ClInclude Include="..\..\src\input\CursorPositionGuard.h" />
+    <ClInclude Include="..\..\src\platform\AppPaths.h" />
+    <ClInclude Include="..\..\src\platform\StartupDiagnostics.h" />
+    <ClInclude Include="..\..\src\platform\UserPreferences.h" />
+    <ClInclude Include="..\..\src\session\CaptureSession.h" />
+    <ClInclude Include="..\..\src\session\SessionInputSupport.h" />
+    <ClInclude Include="..\..\src\session\SessionOutputSupport.h" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Image Include="Assets\Square44x44Logo.png" />
+    <Image Include="Assets\Square150x150Logo.png" />
+    <Image Include="Assets\Wide310x150Logo.png" />
+    <Image Include="Assets\StoreLogo.png" />
+    <Image Include="Assets\SplashScreen.png" />
+    <Image Include="Assets\Square44x44Logo.scale-200.png" />
+    <Image Include="Assets\Square44x44Logo.scale-400.png" />
+    <Image Include="Assets\Square44x44Logo.targetsize-16.png" />
+    <Image Include="Assets\Square44x44Logo.targetsize-24.png" />
+    <Image Include="Assets\Square44x44Logo.targetsize-32.png" />
+    <Image Include="Assets\Square44x44Logo.targetsize-48.png" />
+    <Image Include="Assets\Square44x44Logo.targetsize-256.png" />
+    <Image Include="Assets\Square150x150Logo.scale-200.png" />
+    <Image Include="Assets\Square150x150Logo.scale-400.png" />
+    <Image Include="Assets\Rillshot.ico" />
+    <None Include="Assets\AppIcon.svg" />
+    <None Include="Assets\BrandLockup.svg" />
+    <None Include="HybridCRT.props" />
+    <None Include="README.md" />
+    <Content Include="..\..\LICENSE" Condition="'$(RillshotDistribution)'=='Msix'">
+      <Link>Legal\LICENSE.txt</Link>
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+    <Content Include="..\..\COPYRIGHT.md" Condition="'$(RillshotDistribution)'=='Msix'">
+      <Link>Legal\COPYRIGHT.md</Link>
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+    <Content Include="..\..\SOURCE_OFFER.md" Condition="'$(RillshotDistribution)'=='Msix'">
+      <Link>Legal\SOURCE_OFFER.md</Link>
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+    <Content Include="..\..\THIRD_PARTY_NOTICES.txt" Condition="'$(RillshotDistribution)'=='Msix'">
+      <Link>Legal\THIRD_PARTY_NOTICES.txt</Link>
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinUI 2.3.0 published invalid lower-bound metadata for Foundation and
+         InteractiveExperiences. Pin the stable resolutions explicitly; do not
+         allow NuGet to substitute the experimental packages. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.5" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.3" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.3.1" />
+    <PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.250303.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RillshotDistribution)'=='Msix' and '$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(RillshotDistribution)'=='Msix' and '$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

@@ -1,0 +1,11 @@
+Rillshot product version: 1.1.9
+Source identity: 1.1.9-source-ready
+Identity date: 2026-08-16
+
+此身份包含：独立主/设置 ScrollViewer、过渡期视口尺寸隔离、刷新率感知 4–16.667ms 线程池脉冲、最大一个待处理窗口更新、220ms compositor 合成动画、设置目标尺寸与模板空闲预热，以及 `Microsoft::UI::Xaml::Media::CompositionTarget` 完整命名空间门禁、最新导航意图合并、主题失效延后、串行后台偏好写入与关闭补写、显式区域/滚动点、PowerShell AST 门禁、同源 Windows 工具发现、人工输入 EOF 分类、输入异常隔离、双相位接缝、有界拼接内存、MSIX LocalState、GPL-3.0-only/商业双授权、发布签名门禁，以及不依赖维护者内部 `docs/` 的公开 README、工程检查与 CI。
+
+完整交付 ZIP 中，当前源码目录与 `Rillshot-1.1.9-ai-prompts` 是平级兄弟目录；两者互不包含。提示词不属于 Git 源码仓库，也不参与源码仓库门禁。
+
+构建开头必须打印：Source identity: 1.1.9-source-ready
+
+源码身份不使用累加的内部 rN 编号。若构建输出不是上述值，说明正在使用其他源码树；请在新的短 ASCII 空目录执行干净 Restore/Build，不复用旧 `obj`、`bin` 或 `artifacts\cache` 作为 1.1.9 发布证据。

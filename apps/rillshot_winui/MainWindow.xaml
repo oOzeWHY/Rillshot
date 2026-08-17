@@ -1,0 +1,604 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Rillshot.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Rillshot">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base"/>
+    </Window.SystemBackdrop>
+
+    <Grid
+        x:Name="RootGrid"
+        Background="Transparent"
+        Loaded="RootGrid_Loaded"
+        KeyboardAcceleratorPlacementMode="Hidden">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Escape" Invoked="StopCapture_Invoked"/>
+        </Grid.KeyboardAccelerators>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar" Padding="0,0,156,0" Background="Transparent" SizeChanged="AppTitleBar_SizeChanged">
+            <Grid x:Name="AppTitleBarDragRegion" Padding="16,0,0,0" Background="Transparent">
+                <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                    <Image Source="Assets/Square44x44Logo.png" Width="20" Height="20" Stretch="Uniform" AutomationProperties.AccessibilityView="Raw"/>
+                    <TextBlock VerticalAlignment="Center" Text="Rillshot" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="PageHost" Grid.Row="1">
+            <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup>
+                        <VisualState x:Name="NarrowLayout">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="0"/>
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="CapturePageSurface.Padding" Value="12,8,12,16"/>
+                                <Setter Target="SettingsPageSurface.Padding" Value="12,8,12,16"/>
+                                <Setter Target="ReadyCommandDividerColumn.Width" Value="0"/>
+                                <Setter Target="ReadyCommandSecondaryColumn.Width" Value="0"/>
+                                <Setter Target="ReadyCommandDividerRow.Height" Value="Auto"/>
+                                <Setter Target="ReadyCommandSecondaryRow.Height" Value="Auto"/>
+                                <Setter Target="ReadyCommandDivider.(Grid.Column)" Value="0"/>
+                                <Setter Target="ReadyCommandDivider.(Grid.Row)" Value="1"/>
+                                <Setter Target="ReadyCommandDivider.Width" Value="Auto"/>
+                                <Setter Target="ReadyCommandDivider.Height" Value="1"/>
+                                <Setter Target="ReadyCommandDivider.Margin" Value="8,0"/>
+                                <Setter Target="OpenSettingsButton.(Grid.Column)" Value="0"/>
+                                <Setter Target="OpenSettingsButton.(Grid.Row)" Value="2"/>
+                            </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="StandardLayout">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="700"/>
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="CapturePageSurface.Padding" Value="20,12,20,20"/>
+                                <Setter Target="SettingsPageSurface.Padding" Value="20,12,20,20"/>
+                            </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="WideLayout">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="1100"/>
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="CapturePageSurface.Padding" Value="24,16,24,24"/>
+                                <Setter Target="SettingsPageSurface.Padding" Value="24,16,24,24"/>
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
+            <ScrollViewer
+                x:Name="CaptureScrollViewer"
+                VerticalScrollMode="Enabled"
+                VerticalScrollBarVisibility="Auto"
+                ZoomMode="Disabled"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                IsTabStop="False">
+                <Grid HorizontalAlignment="Stretch">
+                <Grid x:Name="CapturePageSurface" MaxWidth="1040" Padding="20,12,20,20" HorizontalAlignment="Stretch">
+                    <StackPanel x:Name="CaptureView" MaxWidth="800" HorizontalAlignment="Stretch" Spacing="12">
+                        <Border x:Name="ReadyPanel" Style="{StaticResource WorkspaceCardStyle}">
+                            <StackPanel>
+                                <Button
+                                    Click="PickRegion_Click"
+                                    Style="{StaticResource TargetPickerButtonStyle}"
+                                    AutomationProperties.Name="选择截图区域">
+                                    <Grid ColumnSpacing="18">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border
+                                            Width="64"
+                                            Height="64"
+                                            CornerRadius="8"
+                                            Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AccessibilityView="Raw">
+                                            <FontIcon
+                                                Glyph="&#xE7C4;"
+                                                FontSize="27"
+                                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                AutomationProperties.AccessibilityView="Raw"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5">
+                                            <TextBlock Text="截图区域" Style="{StaticResource QuietTextStyle}"/>
+                                            <TextBlock x:Name="RegionSummaryText" Text="点击选择区域" Style="{StaticResource StateTitleStyle}"/>
+                                        </StackPanel>
+                                        <FontIcon
+                                            Grid.Column="2"
+                                            Glyph="&#xE76C;"
+                                            FontSize="16"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AccessibilityView="Raw"/>
+                                    </Grid>
+                                </Button>
+
+                                <Rectangle Height="1" Margin="0,8" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                                <Grid x:Name="ReadyCommandsGrid" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition x:Name="ReadyCommandDividerColumn" Width="1"/>
+                                        <ColumnDefinition x:Name="ReadyCommandSecondaryColumn" Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition x:Name="ReadyCommandDividerRow" Height="0"/>
+                                        <RowDefinition x:Name="ReadyCommandSecondaryRow" Height="0"/>
+                                    </Grid.RowDefinitions>
+                                    <Button
+                                        x:Name="PickScrollPointButton"
+                                        Click="PickScrollPoint_Click"
+                                        IsEnabled="False"
+                                        Style="{StaticResource ReadyCommandButtonStyle}"
+                                        AutomationProperties.Name="选择滚动点"
+                                        AutomationProperties.HelpText="请先选择截图区域，再选择滚动点">
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Glyph="&#xE7C9;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="滚动点" Style="{StaticResource QuietTextStyle}"/>
+                                                <TextBlock x:Name="ScrollSummaryText" Text="点击选择滚动点" Style="{StaticResource SettingTitleStyle}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                    <Rectangle x:Name="ReadyCommandDivider" Grid.Column="1" Width="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                    <Button
+                                        x:Name="OpenSettingsButton"
+                                        Grid.Column="2"
+                                        Click="OpenSettings_Click"
+                                        Style="{StaticResource ReadyCommandButtonStyle}"
+                                        AutomationProperties.Name="打开设置"
+                                        AutomationProperties.HelpText="调整截图、保存位置、主题、快捷键和精确坐标"
+                                        ToolTipService.ToolTip="设置">
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Glyph="&#xE713;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                            <TextBlock Grid.Column="1" Text="设置" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
+                                </Grid>
+
+                                <Rectangle Height="1" Margin="0,8,0,12" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <FontIcon x:Name="ReadyStateGlyph" Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                        <TextBlock x:Name="ReadyStateText" Text="可以开始截图" Style="{StaticResource QuietTextStyle}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+                                    </StackPanel>
+                                    <Button
+                                        x:Name="StartCaptureButton"
+                                        Grid.Column="1"
+                                        Content="开始截图"
+                                        Click="StartCapture_Click"
+                                        IsEnabled="False"
+                                        MinWidth="144"
+                                        MinHeight="44"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        AutomationProperties.Name="开始截图"
+                                        AutomationProperties.HelpText="快捷键 Ctrl+Enter"
+                                        ToolTipService.ToolTip="开始截图 (Ctrl+Enter)">
+                                        <Button.KeyboardAccelerators>
+                                            <KeyboardAccelerator Key="Enter" Modifiers="Control"/>
+                                        </Button.KeyboardAccelerators>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CapturingPanel" Style="{StaticResource WorkspaceCardStyle}" Visibility="Collapsed" MinHeight="300">
+                            <Border.Transitions>
+                                <TransitionCollection>
+                                    <EntranceThemeTransition FromVerticalOffset="16" IsStaggeringEnabled="False"/>
+                                </TransitionCollection>
+                            </Border.Transitions>
+                            <StackPanel Spacing="18" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                <ProgressRing Width="44" Height="44" IsActive="True" AutomationProperties.Name="截图进行中"/>
+                                <TextBlock x:Name="CaptureStateText" Text="正在截图" Style="{StaticResource StateTitleStyle}" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+                                <TextBlock x:Name="CaptureDestinationText" Text="输出文件" Style="{StaticResource QuietTextStyle}" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="560"/>
+                                <ProgressBar IsIndeterminate="True" MaxWidth="560"/>
+                                <Button x:Name="StopCaptureButton" Click="StopCapture_Click" Content="停止" HorizontalAlignment="Center" MinWidth="112" MinHeight="36" AutomationProperties.Name="停止截图"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="OutcomePanel" Style="{StaticResource WorkspaceCardStyle}" Visibility="Collapsed">
+                            <Border.Transitions>
+                                <TransitionCollection>
+                                    <EntranceThemeTransition FromVerticalOffset="16" IsStaggeringEnabled="False"/>
+                                </TransitionCollection>
+                            </Border.Transitions>
+                            <StackPanel Spacing="16">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="48" Height="48" CornerRadius="8" Background="{ThemeResource ControlAltFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw">
+                                        <FontIcon x:Name="OutcomeGlyph" Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock x:Name="OutcomeTitle" Text="截图已完成" Style="{StaticResource StateTitleStyle}" AutomationProperties.LiveSetting="Polite"/>
+                                        <TextBlock x:Name="OutcomeSubtitle" Text="结果已保存" Style="{StaticResource QuietTextStyle}"/>
+                                    </StackPanel>
+                                    <Button x:Name="ResetButton" Grid.Column="2" Click="Reset_Click" Content="新截图" VerticalAlignment="Center" MinWidth="88" MinHeight="36"/>
+                                </Grid>
+                                <Border x:Name="OutcomePathCard" Padding="14,12" CornerRadius="4" Background="{ThemeResource ControlAltFillColorSecondaryBrush}">
+                                    <TextBlock x:Name="OutcomePathText" Text="未生成图像" TextWrapping="Wrap" AutomationProperties.Name="结果文件"/>
+                                </Border>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="OpenOutputButton" Click="OpenOutput_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" Content="打开"/>
+                                    <Button x:Name="RevealOutputButton" Grid.Column="1" Click="RevealOutput_Click" HorizontalAlignment="Stretch" Content="定位"/>
+                                    <Button x:Name="CopyOutputPathButton" Grid.Column="2" Click="CopyOutputPath_Click" HorizontalAlignment="Stretch" Content="复制路径"/>
+                                </Grid>
+                                <Expander Header="详细信息" IsExpanded="False">
+                                    <TextBox x:Name="OutcomeSummary" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Margin="0,10,0,0" AutomationProperties.Name="截图详情"/>
+                                </Expander>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+                </Grid>
+            </ScrollViewer>
+
+            <ScrollViewer
+                x:Name="SettingsScrollViewer"
+                Visibility="Collapsed"
+                VerticalScrollMode="Enabled"
+                VerticalScrollBarVisibility="Auto"
+                ZoomMode="Disabled"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                IsTabStop="False">
+                <Grid HorizontalAlignment="Stretch">
+                <Grid x:Name="SettingsPageSurface" MaxWidth="1040" Padding="20,12,20,20" HorizontalAlignment="Stretch">
+                    <StackPanel x:Name="SettingsView" MaxWidth="920" HorizontalAlignment="Stretch" Spacing="12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button
+                                x:Name="SettingsBackButton"
+                                Click="CloseSettings_Click"
+                                Width="40"
+                                Height="40"
+                                Padding="0"
+                                Style="{StaticResource ElevatedIconButtonStyle}"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="返回主页面">
+                                <FontIcon Glyph="&#xE72B;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                            </Button>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="设置" Style="{StaticResource PageTitleStyle}"/>
+                                <TextBlock Text="截图、保存和应用偏好" Style="{StaticResource QuietTextStyle}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <InfoBar
+                            x:Name="ShellInfoBar"
+                            IsOpen="False"
+                            IsClosable="True"
+                            Severity="Informational"
+                            AutomationProperties.LiveSetting="Polite"/>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="截图" Style="{StaticResource SectionTitleStyle}"/>
+                                    <TextBlock x:Name="CaptureBehaviorSummaryText" Text="自动 · 鼠标滚轮 · 12 帧" Style="{StaticResource QuietTextStyle}"/>
+                                </StackPanel>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="捕获方式" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="BackendBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="CaptureBehavior_SelectionChanged" AutomationProperties.Name="捕获方式">
+                                        <ComboBoxItem Content="自动（推荐）"/>
+                                        <ComboBoxItem Content="高性能" AutomationProperties.HelpText="使用 DXGI 桌面复制"/>
+                                        <ComboBoxItem Content="兼容模式" AutomationProperties.HelpText="使用 GDI 屏幕捕获"/>
+                                    </ComboBox>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="220"/></Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="滚动方向" Style="{StaticResource SettingTitleStyle}"/>
+                                        <TextBlock Text="页面向下滚动异常时可改为向上" Style="{StaticResource QuietTextStyle}"/>
+                                    </StackPanel>
+                                    <ComboBox x:Name="ScrollDirectionBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="ScrollDirection_SelectionChanged" AutomationProperties.Name="滚动方向" AutomationProperties.HelpText="决定截图时页面移动和长图组装的方向" ToolTipService.ToolTip="决定截图时页面移动和长图组装的方向">
+                                        <ComboBoxItem Content="向下（默认）"/><ComboBoxItem Content="向上"/>
+                                    </ComboBox>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="滚动方式" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="ScrollModeBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="CaptureBehavior_SelectionChanged" AutomationProperties.Name="滚动方式">
+                                        <ComboBoxItem Content="鼠标滚轮（推荐）"/>
+                                        <ComboBoxItem Content="翻页键"/>
+                                        <ComboBoxItem Content="空格键"/>
+                                        <ComboBoxItem Content="方向键"/>
+                                    </ComboBox>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="104"/>
+                                        <ColumnDefinition Width="104"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="捕获限制" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                    <NumberBox x:Name="MaxFramesBox" Grid.Column="1" Header="帧数" Value="12" Minimum="1" Maximum="10000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="最多捕获帧数"/>
+                                    <NumberBox x:Name="WheelNotchesBox" Grid.Column="2" Header="步数" Value="1" Minimum="1" Maximum="120" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="每次滚动步数"/>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="固定页头" Style="{StaticResource SettingTitleStyle}"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock x:Name="HeaderSummaryText" Text="未设置" Style="{StaticResource QuietTextStyle}" VerticalAlignment="Center"/>
+                                            <Button
+                                                Style="{StaticResource HelpIconButtonStyle}"
+                                                AutomationProperties.Name="固定页头说明"
+                                                AutomationProperties.HelpText="未设置时，所有画面都用于查找重叠内容。设置后，页头在结果中只保留一次，后续画面从页头下方开始匹配。"
+                                                ToolTipService.ToolTip="未设置时，所有画面都用于查找重叠内容。设置后，页头在结果中只保留一次，后续画面从页头下方开始匹配。">
+                                                <FontIcon Glyph="&#xE897;" FontSize="12" AutomationProperties.AccessibilityView="Raw"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <NumberBox x:Name="HeaderHeightBox" Grid.Column="1" Value="0" Minimum="0" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" Header="像素" AutomationProperties.Name="固定页头高度"/>
+                                    <Button x:Name="PickHeaderBoundaryButton" Grid.Column="2" Content="选择" Click="PickHeaderBoundary_Click" IsEnabled="False" Style="{StaticResource SettingActionButtonStyle}" VerticalAlignment="Bottom" AutomationProperties.Name="选择固定页头底部边界"/>
+                                    <Button x:Name="ClearHeaderButton" Grid.Column="3" Content="清除" Click="ClearHeader_Click" Style="{StaticResource SettingActionButtonStyle}" VerticalAlignment="Bottom" IsEnabled="False" AutomationProperties.Name="清除固定页头"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <StackPanel Spacing="14">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource SettingGlyphSurfaceStyle}">
+                                        <FontIcon Glyph="&#xE8B7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="保存" Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock x:Name="OutputSummaryText" Text="Rillshot.png" Style="{StaticResource QuietTextStyle}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox
+                                        x:Name="OutputPathBox"
+                                        Header="保存位置"
+                                        IsReadOnly="True"
+                                        TextChanged="OutputPath_TextChanged"
+                                        ToolTipService.ToolTip="截图输出的完整文件路径"
+                                        AutomationProperties.Name="截图保存位置"/>
+                                    <Button
+                                        x:Name="BrowseOutputButton"
+                                        Grid.Column="1"
+                                        Content="更改"
+                                        Click="BrowseOutput_Click"
+                                        Style="{StaticResource SettingActionButtonStyle}"
+                                        VerticalAlignment="Bottom"
+                                        AutomationProperties.Name="更改截图保存位置"/>
+                                </Grid>
+                                <TextBlock Text="支持 PNG 和 BMP；已有文件只会在你确认后替换。" Style="{StaticResource QuietTextStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="偏好" Style="{StaticResource SectionTitleStyle}"/>
+                                    <TextBlock x:Name="PreferenceSummaryText" Text="跟随系统 · Ctrl + Alt + S" Style="{StaticResource QuietTextStyle}"/>
+                                </StackPanel>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="主题" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="ThemeBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="Theme_SelectionChanged" AutomationProperties.Name="应用主题">
+                                        <ComboBoxItem Content="跟随系统"/>
+                                        <ComboBoxItem Content="浅色"/>
+                                        <ComboBoxItem Content="深色"/>
+                                    </ComboBox>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="全局快捷键" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                    <ToggleSwitch x:Name="GlobalHotkeySwitch" Grid.Column="1" IsOn="True" OnContent="已启用" OffContent="已关闭" Toggled="GlobalHotkey_Toggled" AutomationProperties.Name="启用全局快捷键"/>
+                                </Grid>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="HotkeyBox" Header="快捷键组合" Text="Ctrl + Alt + S" IsReadOnly="True" PreviewKeyDown="HotkeyBox_KeyDown" ToolTipService.ToolTip="当前已注册组合始终开始框选；单击后可输入新组合" AutomationProperties.Name="全局快捷键组合" AutomationProperties.HelpText="当前已注册组合在设置页也会直接开始框选；输入其他 Ctrl 或 Alt 加字母、数字或 F1 到 F11 可更换组合"/>
+                                    <Button Grid.Column="1" Content="恢复默认" Click="ResetHotkey_Click" Style="{StaticResource SettingActionButtonStyle}" VerticalAlignment="Bottom" AutomationProperties.Name="恢复默认全局快捷键"/>
+                                </Grid>
+                                <StackPanel Spacing="3">
+                                    <TextBlock x:Name="HotkeyStatusText" Text="正在检查快捷键" Style="{StaticResource QuietTextStyle}"/>
+                                    <TextBlock x:Name="PreferencePersistenceText" Text="偏好将保存到应用数据目录" Style="{StaticResource QuietTextStyle}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <Expander IsExpanded="False" HorizontalContentAlignment="Stretch">
+                                <Expander.Header>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource SettingGlyphSurfaceStyle}">
+                                            <FontIcon Glyph="&#xE7C4;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="精确位置" Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock x:Name="ExactPositionSummaryText" Text="尚未选择截图区域与滚动点" Style="{StaticResource QuietTextStyle}" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Expander.Header>
+                                <Grid x:Name="ExactPositionGrid" Padding="0,16,0,0" ColumnSpacing="12" RowSpacing="12">
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroup>
+                                            <VisualState x:Name="ExactPositionStacked">
+                                                <VisualState.StateTriggers>
+                                                    <AdaptiveTrigger MinWindowWidth="0"/>
+                                                </VisualState.StateTriggers>
+                                            </VisualState>
+                                            <VisualState x:Name="ExactPositionColumns">
+                                                <VisualState.StateTriggers>
+                                                    <AdaptiveTrigger MinWindowWidth="880"/>
+                                                </VisualState.StateTriggers>
+                                                <VisualState.Setters>
+                                                    <Setter Target="ExactPositionSecondColumn.Width" Value="*"/>
+                                                    <Setter Target="ExactPositionSecondRow.Height" Value="0"/>
+                                                    <Setter Target="ScrollPositionSurface.(Grid.Column)" Value="1"/>
+                                                    <Setter Target="ScrollPositionSurface.(Grid.Row)" Value="0"/>
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateManager.VisualStateGroups>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition x:Name="ExactPositionSecondColumn" Width="0"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition x:Name="ExactPositionSecondRow" Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Border Style="{StaticResource InsetSettingSurfaceStyle}">
+                                        <StackPanel Spacing="12">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Style="{StaticResource CoordinateGlyphSurfaceStyle}">
+                                                    <FontIcon Glyph="&#xE7C4;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="截图区域" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="2" Content="框选" Click="PickRegion_Click" Style="{StaticResource SettingActionButtonStyle}" AutomationProperties.Name="重新框选截图区域"/>
+                                            </Grid>
+                                            <Grid ColumnSpacing="8" RowSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <NumberBox x:Name="RegionXBox" Header="X" PlaceholderText="未选择" Minimum="-100000" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="截图区域 X 坐标"/>
+                                                <NumberBox x:Name="RegionYBox" Grid.Column="1" Header="Y" PlaceholderText="未选择" Minimum="-100000" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="截图区域 Y 坐标"/>
+                                                <NumberBox x:Name="RegionWidthBox" Grid.Row="1" Header="宽度" PlaceholderText="未选择" Minimum="1" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="截图区域宽度"/>
+                                                <NumberBox x:Name="RegionHeightBox" Grid.Row="1" Grid.Column="1" Header="高度" PlaceholderText="未选择" Minimum="1" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="截图区域高度"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border x:Name="ScrollPositionSurface" Grid.Row="1" Style="{StaticResource InsetSettingSurfaceStyle}">
+                                        <StackPanel Spacing="12">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Style="{StaticResource CoordinateGlyphSurfaceStyle}">
+                                                    <FontIcon Glyph="&#xE7C9;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="滚动位置" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="2" Content="选点" Click="PickScrollPoint_Click" Style="{StaticResource SettingActionButtonStyle}" AutomationProperties.Name="在屏幕上选择滚动位置"/>
+                                            </Grid>
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <NumberBox x:Name="ScrollXBox" Header="X" PlaceholderText="未选择" Minimum="-100000" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="滚动位置 X 坐标"/>
+                                                <NumberBox x:Name="ScrollYBox" Grid.Column="1" Header="Y" PlaceholderText="未选择" Minimum="-100000" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" AutomationProperties.Name="滚动位置 Y 坐标"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Expander>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="关于与许可" Style="{StaticResource SectionTitleStyle}"/>
+                                <TextBlock Text="Rillshot 1.1.9 · Copyright © 2026 Rillshot contributors" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                <TextBlock Text="社区版本仅按 GNU General Public License 第 3 版提供。你可以依照该许可复制、修改和再分发本程序；本程序不提供任何担保。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                <HyperlinkButton
+                                    Content="查看 GNU GPL 许可全文"
+                                    NavigateUri="https://www.gnu.org/licenses/gpl-3.0.html"
+                                    Padding="0,4"
+                                    HorizontalAlignment="Left"
+                                    AutomationProperties.Name="在浏览器中查看 GNU GPL 许可全文"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

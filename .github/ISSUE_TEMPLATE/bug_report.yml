@@ -1,0 +1,48 @@
+name: 缺陷报告
+description: 提交可复现的功能、稳定性或界面问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 请先脱敏截图、输出路径和 JSONL；安全问题请按 SECURITY.md 私密报告。
+  - type: input
+    id: version
+    attributes:
+      label: Rillshot 版本
+      placeholder: 1.1.9
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      description: Windows 版本、缩放、显示器布局、捕获后端与输入方式。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 实际结果与预期结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已脱敏证据
+      description: 可选的日志、JSONL、对照帧或录屏。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 Issue。
+          required: true
+        - label: 我已从附件中删除敏感信息。
+          required: true

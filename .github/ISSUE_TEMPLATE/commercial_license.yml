@@ -1,0 +1,26 @@
+name: 商业授权咨询
+description: 用非机密概要请求维护者提供后续私密联系渠道
+title: "[Commercial license] "
+labels: [commercial-license]
+body:
+  - type: markdown
+    attributes:
+      value: 此 Issue 默认公开。请只留下非机密的需求概要，不要提交采购预算、客户名单、源码或其他商业机密。
+  - type: dropdown
+    id: use
+    attributes:
+      label: 使用类型
+      options:
+        - 专有产品嵌入
+        - 闭源内部部署
+        - 托管服务
+        - 商业支持
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: 非机密需求概要
+    validations:
+      required: true
