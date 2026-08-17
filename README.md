@@ -87,13 +87,13 @@ Portable 版本会把默认截图、设置和启动日志保存在程序目录�
 |---|---|
 | `*.partial.png` | 截止到停止位置时已经完成的部分 |
 | `*.comparison.png` | 最后一次未能通过检查的画面，便于比较问题位置 |
-| `*.jsonl` | 捕获过程和停止原因；提交问题前请检查并删除敏感路径或坐标 |
+| `*.jsonl` | 捕获过程和停止原因；提交问题前请删除其中的个人信息、工作内容和本地路径 |
 
 ## 隐私与限制
 
 Rillshot 1.1.9 不包含账号系统、广告、云上传、遥测、OCR 或图片编辑器。应用不会主动把截图、设置或诊断信息发送到网络。
 
-截图和诊断文件可能包含个人信息、工作内容或本地路径。分享这些文件或提交 Issue 前，请先检查并脱敏。Rillshot 不适合捕获受数字版权保护的内容、Windows 安全桌面或权限更高的窗口；这些场景可能得到黑屏、空白内容或明确的捕获失败提示。
+截图和诊断文件可能包含个人信息、工作内容或本地路径。分享这些文件或提交 Issue 前，请逐项检查并删除不宜公开的内容。Rillshot 不适合捕获受数字版权保护的内容、Windows 安全桌面或权限更高的窗口；这些场景可能得到黑屏、空白内容或明确的捕获失败提示。
 
 ## 从源码构建
 
@@ -114,19 +114,22 @@ build-release.cmd
 
 该命令会生成一个未签名的内部 Preview，并运行源码检查、核心测试、WinUI 构建、依赖检查和启动冒烟。输出位于 `artifacts\release`。未签名的 Preview 仅用于本地开发和测试，不应公开分发。
 
-### 平台无关核心
+### 使用 MSVC 运行核心测试
 
-核心算法和测试可在提供 C++23、CMake、Ninja 与 Node.js 的环境中构建：
+在 Developer PowerShell for Visual Studio 中可以单独运行核心测试，无需安装 GCC：
 
-```bash
-node tools/check_project_consistency.mjs
-node tools/check_human_docs_language.mjs
-cmake --preset core-release
-cmake --build --preset core-release
-ctest --preset core-release
+```powershell
+node .\tools\check_project_consistency.mjs
+node .\tools\check_human_docs_language.mjs
+cmake -S . -B out\build\core-msvc -A x64 `
+  -DRILLSHOT_BUILD_TESTS=ON `
+  -DRILLSHOT_BUILD_WINDOWS_APPS=OFF `
+  -DRILLSHOT_WARNINGS_AS_ERRORS=ON
+cmake --build out\build\core-msvc --config Release --parallel
+ctest --test-dir out\build\core-msvc -C Release --output-on-failure
 ```
 
-需要运行 AddressSanitizer 和 UndefinedBehaviorSanitizer 时，将 `core-release` 替换为 `core-sanitize`。
+GitHub Actions 还会在 Linux 托管环境中运行 GCC 和 sanitizer 检查；这是仓库的补充自动检查，不是 Windows 开发者的本机依赖。
 
 ## 工程结构
 
@@ -145,7 +148,7 @@ ctest --preset core-release
 欢迎提交缺陷复现、测试、文档修正和范围明确的代码改进。开始前请阅读 [贡献指南](CONTRIBUTING.md) 和 [行为准则](CODE_OF_CONDUCT.md)。
 
 - 缺陷报告或功能建议：使用 [Issue 模板](../../issues/new/choose)。
-- 安全漏洞：不要公开披露利用细节，请按照 [安全政策](SECURITY.md) 报告。
+- 安全漏洞：不要创建普通 Issue，请按照 [安全政策](SECURITY.md) 从仓库的 Security 页面提交。
 - 用户可见的变化：同时更新 [变更记录](CHANGELOG.md)。
 
 ## 许可证

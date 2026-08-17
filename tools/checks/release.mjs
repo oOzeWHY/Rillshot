@@ -17,6 +17,18 @@ export function checkRelease(context) {
   const license = read("LICENSE");
   const thirdPartyNotices = read("THIRD_PARTY_NOTICES.txt");
   const bugReportForm = read(".github/ISSUE_TEMPLATE/bug_report.yml");
+  const commercialLicenseForm = read(".github/ISSUE_TEMPLATE/commercial_license.yml");
+  const publicChinese = [
+    rootReadme,
+    read("CONTRIBUTING.md"),
+    read("SECURITY.md"),
+    read("COMMERCIAL-LICENSE.md"),
+    bugReportForm,
+    commercialLicenseForm,
+    read("tools/release/FEEDBACK-TEMPLATE-ZH.md"),
+    read("tools/release/README-FIRST-PREVIEW-ZH.txt"),
+    read("tools/release/README-FIRST-STABLE-ZH.txt"),
+  ].join("\n");
 
   for (const file of [
     "README.md",
@@ -68,6 +80,14 @@ export function checkRelease(context) {
     /缺陷报告或功能建议[：:]使用 \[Issue 模板\]/u);
   requireMatch("缺陷报告表单的版本示例不是 1.1.9", bugReportForm,
     /placeholder:\s*1\.1\.9/u);
+  requireNoMatch("公开中文仍含抽象或翻译腔式的信息处理指令", publicChinese,
+    /脱敏截图|已脱敏证据|非机密(?:的)?(?:需求)?概要|后续私密联系渠道|按 SECURITY\.md 私密报告/u);
+  requireMatch("缺陷报告表单未具体说明附件公开前应删除的内容", bugReportForm,
+    /删除账号、工作内容、本地路径/u);
+  requireMatch("商业授权表单未明确说明 Issue 公开范围和填写边界", commercialLicenseForm,
+    /内容会公开显示[\s\S]*?预算、客户名称、未公开代码/u);
+  requireMatch("安全政策未给出 GitHub 私密漏洞报告的实际入口", read("SECURITY.md"),
+    /Security → Advisories[\s\S]*?Report a vulnerability[\s\S]*?只有报告者和仓库维护者能够查看/u);
   requireMatch("LICENSE 不是完整 GNU GPL 第 3 版文本", license,
     /GNU GENERAL PUBLIC LICENSE[\s\S]*?Version 3, 29 June 2007[\s\S]*?END OF TERMS AND CONDITIONS/u);
   requireNoMatch("LICENSE 仍包含 GNU Affero GPL 文本", license,

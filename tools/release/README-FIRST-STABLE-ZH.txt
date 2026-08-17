@@ -7,7 +7,7 @@ Rillshot 1.1.9 Portable
 1. 把整个 ZIP 解压到新的、可写的目录；不要直接在 ZIP 内运行。
 2. 双击根目录唯一的启动入口 Rillshot.cmd；不要进入 app 目录寻找 EXE。
 3. 选择截图区域、滚动点与方向，然后开始截图。
-4. 截图和诊断默认保存在 app\captures 与 app\logs，请在分享前检查是否含敏感信息。
+4. 截图和诊断默认保存在 app\captures 与 app\logs；分享前请删除账号、工作内容和本地路径。
 
 安全核对
 - 只从发布者给出的正式下载页获取文件。
@@ -19,8 +19,7 @@ Rillshot 1.1.9 Portable
 LICENSE、COPYRIGHT.md、SOURCE_OFFER.md 和 THIRD_PARTY_NOTICES.txt 说明社区许可、权利链、对应源码获取与第三方材料。
 公开二进制必须与构建它的 v1.1.9 tag 对应源码在同一发布位置等价提供；若下载页没有源码入口，请停止分发。
 RELEASE-METADATA.json 记录 productVersion、artifactVersion、sourceRevision 和平台信息。
-报告问题时请复制 FEEDBACK-TEMPLATE-ZH.md；不要发送含私人截图内容的图片或 JSONL，
-除非你已经检查并同意分享。
+报告问题时请复制 FEEDBACK-TEMPLATE-ZH.md；发送图片或 JSONL 前，请逐项检查并删除不愿公开的内容。
 
 已知边界
 - 仅支持 64 位 Windows 10/11。

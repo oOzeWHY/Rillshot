@@ -7,6 +7,13 @@ export function createCheckContext(entryUrl) {
   const projectRoot = path.resolve(toolsRoot, "..");
   const deliveryRoot = projectRoot;
   const failures = [];
+  const ignoredDirectoryNames = new Set([".git", "artifacts", "node_modules"]);
+  const ignoredTopLevelDirectories = new Set([".vs", "build", "out"]);
+  const ignoredWinUIDirectories = new Set([
+    path.join("apps", "rillshot_winui", "Generated Files"),
+    path.join("apps", "rillshot_winui", "bin"),
+    path.join("apps", "rillshot_winui", "obj"),
+  ]);
 
   function absolute(relativePath, root = projectRoot) {
     return path.join(root, relativePath);
@@ -48,6 +55,15 @@ export function createCheckContext(entryUrl) {
     if (expression.test(content)) failures.push(message);
   }
 
+  function shouldIgnoreDirectory(directory) {
+    const relativePath = path.relative(projectRoot, directory);
+    const [topLevelName] = relativePath.split(path.sep);
+    return ignoredDirectoryNames.has(path.basename(directory)) ||
+      ignoredTopLevelDirectories.has(topLevelName) ||
+      topLevelName.startsWith("build-") ||
+      ignoredWinUIDirectories.has(relativePath);
+  }
+
   function walk(root, predicate = () => true) {
     if (!fs.existsSync(root)) return [];
     const files = [];
@@ -55,7 +71,7 @@ export function createCheckContext(entryUrl) {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         const target = path.join(directory, entry.name);
         if (entry.isDirectory()) {
-          if (entry.name !== "artifacts" && entry.name !== ".git") visit(target);
+          if (!shouldIgnoreDirectory(target)) visit(target);
         } else if (predicate(target)) {
           files.push(target);
         }

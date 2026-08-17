@@ -1,11 +1,11 @@
 name: 商业授权咨询
-description: 用非机密概要请求维护者提供后续私密联系渠道
+description: 说明使用场景并咨询适用的商业许可
 title: "[Commercial license] "
 labels: [commercial-license]
 body:
   - type: markdown
     attributes:
-      value: 此 Issue 默认公开。请只留下非机密的需求概要，不要提交采购预算、客户名单、源码或其他商业机密。
+      value: 此 Issue 的内容会公开显示。请简要说明使用场景，不要填写预算、客户名称、未公开代码等不宜公开的信息。维护者确认后会告知后续沟通方式。
   - type: dropdown
     id: use
     attributes:
@@ -21,6 +21,7 @@ body:
   - type: textarea
     id: summary
     attributes:
-      label: 非机密需求概要
+      label: 使用场景与需求
+      description: 请说明计划如何使用或分发 Rillshot，以及希望获得哪类授权或支持。
     validations:
       required: true

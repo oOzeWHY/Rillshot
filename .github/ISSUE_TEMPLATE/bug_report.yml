@@ -5,7 +5,7 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: 请先脱敏截图、输出路径和 JSONL；安全问题请按 SECURITY.md 私密报告。
+      value: 上传附件前，请删除账号、工作内容、本地路径等不宜公开的信息。安全漏洞不要在此提交，请按 SECURITY.md 从仓库的 Security 页面报告。
   - type: input
     id: version
     attributes:
@@ -35,8 +35,8 @@ body:
   - type: textarea
     id: evidence
     attributes:
-      label: 已脱敏证据
-      description: 可选的日志、JSONL、对照帧或录屏。
+      label: 日志与截图（可选）
+      description: 可上传有助于定位问题的日志、JSONL、对照图或录屏。上传前请删除与问题无关的个人信息、工作内容和本地路径。
   - type: checkboxes
     id: checks
     attributes:
@@ -44,5 +44,5 @@ body:
       options:
         - label: 我已搜索现有 Issue。
           required: true
-        - label: 我已从附件中删除敏感信息。
+        - label: 我已检查附件，其中不包含不宜公开的信息。
           required: true

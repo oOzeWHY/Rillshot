@@ -6,14 +6,14 @@
 
 - 先搜索已有 Issue，避免重复。
 - 给出 Windows 版本、缩放、显示器布局、输入方式和可最小化复现步骤。
-- 截图、路径和 JSONL 可能包含敏感信息；公开前请先脱敏。
-- 安全漏洞不要使用普通 Issue，请按 `SECURITY.md` 处理。
+- 上传截图、日志或 JSONL 前，请删除账号、工作内容、本地路径等与问题无关的信息。
+- 安全漏洞不要使用普通 Issue，请按 `SECURITY.md` 从仓库的 Security 页面提交。
 
 ## 开发流程
 
 1. 从小而单一的变更开始，不在一个 PR 中混合无关重构。
 2. 先运行 `node tools/check_project_consistency.mjs` 和 `node tools/check_human_docs_language.mjs`。
-3. 使用 CMake preset 构建并运行全部平台无关测试。Windows/WinUI 改动还须说明实际构建和人工验证范围。
+3. 在 Windows 上使用 MSVC 构建并运行全部核心测试。Windows/WinUI 改动还须说明实际构建和人工验证范围；无需为本项目额外安装 GCC。
 4. 修复缺陷时补充能在修复前失败的回归测试；不将静态检查写成真机验收。
 5. 更新用户可见行为时，同步 `CHANGELOG.md` 和当前发行说明；AI 提示词包在仓库外独立维护，不随 PR 提交。
 
