@@ -117,7 +117,7 @@ export function checkRelease(context) {
     failures.push("已选定许可证后不应保留 LICENSE-SELECTION-REQUIRED.md");
   }
   requireMatch("SOURCE_REVISION 未声明当前源码身份", sourceIdentity,
-    /Source identity: 1\.1\.9-source-ready/u);
+    /Source identity: 1\.1\.9-source-ready-xaml-build-gate/u);
   requireNoMatch("当前源码身份仍使用旧的 release-candidate-rN 格式",
     sourceIdentity, /release-candidate-r\d+/u);
   requireNoMatch("README 仍把 0.x 迭代当作当前说明", rootReadme,
@@ -155,6 +155,16 @@ export function checkRelease(context) {
     /-E capabilities[\s\S]*?generators[\s\S]*?Generator/u);
   requireMatch("发布日志未记录所选 Visual Studio 与 MSBuild 身份", releaseScript,
     /Visual Studio: \$visualStudioRoot[\s\S]*?MSBuild: \$msbuild \(\$msbuildVersion\)/u);
+  requireMatch("发布脚本未在 MSBuild 误报成功时从日志阻断 XAML/WMC 错误", releaseScript,
+    /Assert-MSBuildLogHasNoReportedErrors[\s\S]*?Xaml Internal Error[\s\S]*?error WMC\\d\+[\s\S]*?Build FAILED[\s\S]*?Error\\\(s\\\)[\s\S]*?Invoke-Logged \$msbuild \$buildArguments \$winuiLog[\s\S]*?Assert-MSBuildLogHasNoReportedErrors \$winuiLog/u);
+  requireMatch("发布输出未在每次构建前清空，旧附件可能混入哈希清单", releaseScript,
+    /Remove-DirectoryIfPresent \$releaseRoot[\s\S]*?New-Item -ItemType Directory -Path[\s\S]*?\$releaseRoot/u);
+  requireMatch("核心与 WinUI 日志未在每次构建前清空，旧错误可能污染当前证据", releaseScript,
+    /if \(Test-Path -LiteralPath \$coreLog\)[\s\S]*?Remove-Item -LiteralPath \$coreLog[\s\S]*?if \(Test-Path -LiteralPath \$winuiLog\)[\s\S]*?Remove-Item -LiteralPath \$winuiLog/u);
+  requireNoMatch("MSIX 枚举仍使用 Windows PowerShell 5.1 下不可靠的 LiteralPath/Include 组合", releaseScript,
+    /Get-ChildItem\s+-LiteralPath[^\n]*[\s\S]{0,160}?-Include\s+\*\.msix/u);
+  requireMatch("MSIX 枚举未按实际文件扩展名过滤", releaseScript,
+    /Get-ChildItem -LiteralPath \(Join-Path \$releaseRoot "msix-\$Platform"\)[\s\S]*?\.Extension\.ToLowerInvariant\(\) -in @\("\.msix", "\.appx"\)/u);
   requireMatch("发布日志未记录 CMake 和 SignTool 路径/版本", buildToolDiscovery,
     /CMake: \$CMakePath[\s\S]*?SignTool: \$\(\$candidate\.FullName\)/u);
   requireMatch("SignTool 发现仍未按 SDK 版本对象排序", buildToolDiscovery,
@@ -166,7 +176,7 @@ export function checkRelease(context) {
   requireMatch("发布脚本未加载可核验的 Portable 复制模块", releaseScript,
     /release\\PortablePayload\.ps1/u);
   requireMatch("发布脚本没有输出可辨认的源码身份", releaseScript,
-    /\$sourceRevision\s*=\s*"1\.1\.9-source-ready"[\s\S]*Source identity: \$sourceRevision/u);
+    /\$sourceRevision\s*=\s*"1\.1\.9-source-ready-xaml-build-gate"[\s\S]*Source identity: \$sourceRevision/u);
   requireMatch("Restore 未把关键 NuGet 解析警告提升为错误", releaseScript,
     /warnaserror:NU1603;NU1605;NU1608/u);
   requireMatch("NuGet 资产门禁未拒绝预发布包", restoreCheckScript,

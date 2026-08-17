@@ -209,12 +209,8 @@
     <ClInclude Include="MainWindow.xaml.h">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClInclude>
-    <ClInclude Include="MainWindow.Navigation.Motion.h">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </ClInclude>
-    <ClInclude Include="MainWindow.WindowSizing.h">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </ClInclude>
+    <ClInclude Include="MainWindow.Navigation.Motion.h" />
+    <ClInclude Include="MainWindow.WindowSizing.h" />
     <ClInclude Include="..\..\src\capture\ICaptureBackend.h" />
     <ClInclude Include="..\..\src\gui\CaptureController.h" />
     <ClInclude Include="..\..\src\gui\CaptureSummary.h" />

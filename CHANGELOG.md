@@ -2,6 +2,9 @@
 
 ## 1.1.9｜2026-08-16
 
+- 修复 WinUI 工程的 XAML 头文件映射：只有 `MainWindow.xaml.h` 声明 `DependentUpon=MainWindow.xaml`，辅助头不再重复占用映射；发布脚本会清除旧日志，并在 MSBuild 进程误报成功但日志仍含 XAML/WMC/Build FAILED/非零错误汇总时阻断发布。
+- 发布输出目录现在每次构建都重新建立，防止旧 ZIP、MSIX 或依赖清单混入当前 `SHA256SUMS.txt`；MSIX 文件枚举改为先递归列出文件再按扩展名过滤，避免 Windows PowerShell 5.1 对 `-LiteralPath` 与 `-Include` 组合的不一致处理。
+- 本次完整重建候选的可打印源码身份为 `1.1.9-source-ready-xaml-build-gate`，用于与此前同产品版本的混合目录或 overlay 结果区分。
 - 原生窗口几何不再由低于 idle 且可能迟到的 `DispatcherQueueTimer` 驱动；改用按标称刷新率夹紧到 4–16.667ms 的短生命周期线程池脉冲，并以原子门合并为最多一个待处理 UI 更新。
 - 主页面与设置页拆成独立 ScrollViewer，过渡期间分别固定起点/终点视口尺寸；大型设置树不再随每个 `MoveAndResize` 采样完整重排。
 - 220ms 透明度、位移与视口中心缩放继续由 compositor 执行；预热扩展到预计最终尺寸，快速反向、减少动画与关闭清理保持。
