@@ -38,6 +38,22 @@ export function checkWinUI(context) {
   const selectionSnapshot = read("src/gui/SelectionOverlay.Snapshot.cpp");
   const project = read("apps/rillshot_winui/Rillshot.WinUI.vcxproj");
 
+  const xamlDependentHeaders = [...project.matchAll(
+    /<ClInclude\s+Include="([^"]+)"[^>]*>([\s\S]*?)<\/ClInclude>/gu,
+  )].flatMap((match) => {
+    const dependent = match[2].match(/<DependentUpon>([^<]+)<\/DependentUpon>/u);
+    return dependent ? [{ header: match[1], dependent: dependent[1] }] : [];
+  });
+  const mainWindowDependentHeaders = xamlDependentHeaders.filter(
+    (item) => item.dependent.toLowerCase() === "mainwindow.xaml",
+  );
+  if (mainWindowDependentHeaders.length !== 1 ||
+      mainWindowDependentHeaders[0].header !== "MainWindow.xaml.h") {
+    failures.push(
+      "MainWindow.xaml 必须且只能由 MainWindow.xaml.h 声明 DependentUpon；辅助头不能重复占用 XAML 类到头文件映射",
+    );
+  }
+
   requireMatch("准备态次级命令没有共享统一样式", appXaml,
     /x:Key="ReadyCommandButtonStyle"[\s\S]*?MinHeight" Value="64"/u);
   const sharedStyleUses = windowXaml.match(

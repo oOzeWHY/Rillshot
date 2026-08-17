@@ -39,7 +39,7 @@ $cacheRoot = Join-Path $artifactRoot "cache"
 $logRoot = Join-Path $artifactRoot "logs"
 $releaseRoot = Join-Path $artifactRoot "release"
 $version = "1.1.9"
-$sourceRevision = "1.1.9-source-ready"
+$sourceRevision = "1.1.9-source-ready-xaml-build-gate"
 $artifactVersion = $version
 if ($ReleaseStage -eq "Preview") {
     $artifactVersion = "$version-preview.$PreviewNumber"
@@ -66,6 +66,25 @@ function Invoke-Logged(
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         throw "$([IO.Path]::GetFileName($FilePath)) failed with exit code $exitCode. See $LogPath"
+    }
+}
+
+function Assert-MSBuildLogHasNoReportedErrors([string]$LogPath) {
+    if (-not (Test-Path -LiteralPath $LogPath -PathType Leaf)) {
+        throw "MSBuild log was not created. The release is blocked: $LogPath"
+    }
+
+    $logText = Get-Content -LiteralPath $LogPath -Raw -Encoding UTF8
+    $reportedErrorPatterns = @(
+        "(?im)\bXaml Internal Error\b",
+        "(?im)\berror WMC\d+\b",
+        "(?im)^\s*Build FAILED\.\s*$",
+        "(?im)^\s*[1-9]\d* Error\(s\)\s*$"
+    )
+    foreach ($pattern in $reportedErrorPatterns) {
+        if ($logText -match $pattern) {
+            throw "MSBuild reported an error even though its process exit code was zero. The release is blocked. See $LogPath"
+        }
     }
 }
 
@@ -254,9 +273,11 @@ Write-Host "Rillshot product version: $version"
 Write-Host "Release artifact version: $artifactVersion"
 Write-Host "Source identity: $sourceRevision"
 
+# Release output is invocation-owned evidence. Always remove it so an
+# incremental build cannot hash or publish archives from an earlier run.
+Remove-DirectoryIfPresent $releaseRoot
 if ($Clean) {
     Remove-DirectoryIfPresent $cacheRoot
-    Remove-DirectoryIfPresent $releaseRoot
 }
 New-Item -ItemType Directory -Path `
     $artifactRoot, $cacheRoot, $logRoot, $releaseRoot, $IntermediateRoot -Force | Out-Null
@@ -309,7 +330,7 @@ try {
             Remove-DirectoryIfPresent $cmakeBuildRoot
         }
         $coreLog = Join-Path $logRoot "core-$Platform-$Configuration.log"
-        if ($Clean -and (Test-Path -LiteralPath $coreLog)) {
+        if (Test-Path -LiteralPath $coreLog) {
             Remove-Item -LiteralPath $coreLog -Force
         }
 
@@ -339,7 +360,7 @@ try {
 
     function Build-WinUI([ValidateSet("Portable", "Msix")][string]$Distribution) {
         $winuiLog = Join-Path $logRoot "winui-$Distribution-$Platform-$Configuration.log"
-        if ($Clean -and (Test-Path -LiteralPath $winuiLog)) {
+        if (Test-Path -LiteralPath $winuiLog) {
             Remove-Item -LiteralPath $winuiLog -Force
         }
 
@@ -394,6 +415,7 @@ try {
             )
         }
         Invoke-Logged $msbuild $buildArguments $winuiLog
+        Assert-MSBuildLogHasNoReportedErrors $winuiLog
 
         if ($Distribution -eq "Portable") {
             $binRoot = Join-Path $IntermediateRoot "Rillshot.WinUI\Portable\$Platform\$Configuration\bin"
@@ -454,8 +476,13 @@ try {
             Write-Host "Portable archive: $archivePath"
             Write-Host "SHA-256: $hash"
         } else {
-            $packages = Get-ChildItem -LiteralPath (Join-Path $releaseRoot "msix-$Platform") `
-                -Recurse -File -Include *.msix, *.appx
+            $packages = @(
+                Get-ChildItem -LiteralPath (Join-Path $releaseRoot "msix-$Platform") `
+                    -Recurse -File -Force |
+                    Where-Object {
+                        $_.Extension.ToLowerInvariant() -in @(".msix", ".appx")
+                    }
+            )
             if ($packages.Count -eq 0) {
                 throw "MSIX packaging completed without producing an .msix or .appx file."
             }
