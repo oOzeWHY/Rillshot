@@ -345,9 +345,12 @@ void MainWindow::showInfo(
         }
 
         using rillshot::gui::CaptureUiStage;
+        const std::wstring detail = message.empty()
+            ? title
+            : title + L" · " + message;
         switch (workflow_.stage()) {
         case CaptureUiStage::Ready:
-            ReadyStateText().Text(title);
+            ReadyStateText().Text(detail);
             ReadyStateGlyph().Glyph(L"\xE7BA");
             break;
         case CaptureUiStage::Capturing:
@@ -356,7 +359,7 @@ void MainWindow::showInfo(
             break;
         case CaptureUiStage::Result:
         case CaptureUiStage::Recovery:
-            OutcomeSubtitle().Text(title);
+            OutcomeSubtitle().Text(detail);
             OutcomeGlyph().Glyph(L"\xE7BA");
             break;
         }

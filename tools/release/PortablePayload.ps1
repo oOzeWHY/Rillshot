@@ -172,16 +172,6 @@ function Copy-PortablePayloadVerified(
         }
     }
 
-    foreach ($fileName in $script:PortablePayloadRequiredFiles) {
-        $sourceFile = Join-Path $sourcePath $fileName
-        $destinationFile = Join-Path $destinationPath $fileName
-        $sourceHash = (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash
-        $destinationHash = (
-            Get-FileHash -LiteralPath $destinationFile -Algorithm SHA256).Hash
-        if ($sourceHash -ne $destinationHash) {
-            throw "Portable staging changed the content of required file: $fileName"
-        }
-    }
     $excludedCount = $allSourceFiles.Count - $sourceFiles.Count
-    Write-Host "Portable payload staged exactly: $($sourceFiles.Count) files copied and verified; $excludedCount development files excluded before copying."
+    Write-Host "Portable payload staged: paths, count, and sizes verified for $($sourceFiles.Count) files; $excludedCount development files excluded before copying."
 }

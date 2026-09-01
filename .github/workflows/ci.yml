@@ -18,10 +18,10 @@ jobs:
     name: Core / GCC / Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Check repository
@@ -39,7 +39,7 @@ jobs:
     name: Core / GCC / ASan+UBSan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Configure
@@ -53,12 +53,15 @@ jobs:
     name: Native adapters / MSVC
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Check PowerShell syntax
         shell: powershell
         run: .\tools\check_powershell_syntax.ps1
+      - name: Test source revision resolution
+        shell: powershell
+        run: .\tools\test_source_revision.ps1
       - name: Configure
         run: >-
           cmake -S . -B out/build/windows-native -A x64
@@ -69,3 +72,9 @@ jobs:
         run: cmake --build out/build/windows-native --config Release --parallel 2
       - name: Test
         run: ctest --test-dir out/build/windows-native -C Release --output-on-failure
+      - name: Build unpackaged WinUI release
+        shell: powershell
+        run: >-
+          .\tools\build-release.ps1 -Mode Portable -Platform x64
+          -Configuration Release -ReleaseStage Preview -PreviewNumber 1
+          -SkipCoreTests -Clean

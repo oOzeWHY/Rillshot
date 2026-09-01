@@ -7,10 +7,10 @@ set "PORTABLE_NAME="
 set "LAUNCHER="
 
 if exist "%CURRENT_FILE%" set /p "PORTABLE_NAME="<"%CURRENT_FILE%"
-if defined PORTABLE_NAME set "LAUNCHER=%RELEASE_ROOT%\%PORTABLE_NAME%\Rillshot.cmd"
+if defined PORTABLE_NAME set "LAUNCHER=%RELEASE_ROOT%\%PORTABLE_NAME%\Rillshot.exe"
 if defined LAUNCHER if not exist "%LAUNCHER%" set "LAUNCHER="
 
-for /f "delims=" %%F in ('dir /b /s /a-d /o:-d "%RELEASE_ROOT%\Rillshot-*-win-x64-portable\Rillshot.cmd" 2^>nul') do if not defined LAUNCHER set "LAUNCHER=%%F"
+for /f "delims=" %%F in ('dir /b /s /a-d /o:-d "%RELEASE_ROOT%\Rillshot-*-win-x64-portable\Rillshot.exe" 2^>nul') do if not defined LAUNCHER set "LAUNCHER=%%F"
 
 if not defined LAUNCHER (
   echo Portable build not found.
@@ -19,5 +19,5 @@ if not defined LAUNCHER (
   exit /b 2
 )
 
-call "%LAUNCHER%"
+start "" /wait "%LAUNCHER%"
 exit /b %ERRORLEVEL%

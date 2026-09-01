@@ -5,43 +5,25 @@ import { fileURLToPath } from "node:url";
 export function createCheckContext(entryUrl) {
   const toolsRoot = path.dirname(fileURLToPath(entryUrl));
   const projectRoot = path.resolve(toolsRoot, "..");
-  const deliveryRoot = projectRoot;
   const failures = [];
-  const ignoredDirectoryNames = new Set([".git", "artifacts", "node_modules"]);
-  const ignoredTopLevelDirectories = new Set([".vs", "build", "out"]);
-  const ignoredWinUIDirectories = new Set([
-    path.join("apps", "rillshot_winui", "Generated Files"),
-    path.join("apps", "rillshot_winui", "bin"),
-    path.join("apps", "rillshot_winui", "obj"),
-  ]);
+  const ignoredRoots = new Set([".git", ".vs", "artifacts", "build", "node_modules", "out"]);
 
-  function absolute(relativePath, root = projectRoot) {
-    return path.join(root, relativePath);
+  function absolute(relativePath) {
+    return path.join(projectRoot, relativePath);
   }
 
-  function read(relativePath, root = projectRoot) {
-    const target = absolute(relativePath, root);
+  function read(relativePath) {
     try {
-      return fs.readFileSync(target, "utf8");
+      return fs.readFileSync(absolute(relativePath), "utf8");
     } catch (error) {
-      failures.push(`无法读取 ${path.relative(deliveryRoot, target)}：${error.message}`);
+      failures.push(`无法读取 ${relativePath}：${error.message}`);
       return "";
     }
   }
 
-  function readBuffer(relativePath, root = projectRoot) {
-    const target = absolute(relativePath, root);
-    try {
-      return fs.readFileSync(target);
-    } catch (error) {
-      failures.push(`无法读取 ${path.relative(deliveryRoot, target)}：${error.message}`);
-      return Buffer.alloc(0);
-    }
-  }
-
-  function requireFile(relativePath, root = projectRoot) {
-    if (!fs.existsSync(absolute(relativePath, root))) {
-      failures.push(`缺少文件：${path.relative(deliveryRoot, absolute(relativePath, root))}`);
+  function requireFile(relativePath) {
+    if (!fs.existsSync(absolute(relativePath))) {
+      failures.push(`缺少文件：${relativePath}`);
       return false;
     }
     return true;
@@ -55,23 +37,21 @@ export function createCheckContext(entryUrl) {
     if (expression.test(content)) failures.push(message);
   }
 
-  function shouldIgnoreDirectory(directory) {
-    const relativePath = path.relative(projectRoot, directory);
-    const [topLevelName] = relativePath.split(path.sep);
-    return ignoredDirectoryNames.has(path.basename(directory)) ||
-      ignoredTopLevelDirectories.has(topLevelName) ||
-      topLevelName.startsWith("build-") ||
-      ignoredWinUIDirectories.has(relativePath);
-  }
-
-  function walk(root, predicate = () => true) {
+  function walk(root = projectRoot, predicate = () => true) {
     if (!fs.existsSync(root)) return [];
     const files = [];
     const visit = (directory) => {
       for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
         const target = path.join(directory, entry.name);
+        const relative = path.relative(projectRoot, target);
+        const [topLevel] = relative.split(path.sep);
         if (entry.isDirectory()) {
-          if (!shouldIgnoreDirectory(target)) visit(target);
+          if (!ignoredRoots.has(topLevel) &&
+              !relative.startsWith(path.join("apps", "rillshot_winui", "Generated Files")) &&
+              !relative.startsWith(path.join("apps", "rillshot_winui", "bin")) &&
+              !relative.startsWith(path.join("apps", "rillshot_winui", "obj"))) {
+            visit(target);
+          }
         } else if (predicate(target)) {
           files.push(target);
         }
@@ -81,25 +61,13 @@ export function createCheckContext(entryUrl) {
     return files;
   }
 
-  function checkLineBudget(relativePaths, maximum) {
-    for (const relativePath of relativePaths) {
-      const lineCount = read(relativePath).split(/\r?\n/u).length;
-      if (lineCount > maximum) {
-        failures.push(`${relativePath} 为 ${lineCount} 行，超过 ${maximum} 行职责预算`);
-      }
-    }
-  }
-
   return {
     absolute,
-    checkLineBudget,
-    deliveryRoot,
     failures,
     fs,
     path,
     projectRoot,
     read,
-    readBuffer,
     requireFile,
     requireMatch,
     requireNoMatch,

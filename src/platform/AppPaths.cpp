@@ -24,7 +24,11 @@ bool isSafeDirectoryName(std::wstring_view value) noexcept {
 
 bool hasPackageIdentity() noexcept {
     UINT32 length = 0;
-    return GetCurrentPackageFullName(&length, nullptr) != APPMODEL_ERROR_NO_PACKAGE;
+    // With a zero-length buffer, ERROR_INSUFFICIENT_BUFFER is the documented
+    // positive probe result. Treat every other result as unpackaged: an
+    // unexpected system error must not redirect Portable data into a package
+    // path that cannot be resolved.
+    return GetCurrentPackageFullName(&length, nullptr) == ERROR_INSUFFICIENT_BUFFER;
 }
 
 std::filesystem::path packagedApplicationDataRoot() {

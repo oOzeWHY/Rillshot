@@ -102,11 +102,10 @@ function Assert-PortableReleaseLayout {
     )
 
     foreach ($relativePath in @(
-        "Rillshot.cmd",
+        "Rillshot.exe",
         "README-FIRST-ZH.txt",
         "RELEASE-METADATA.json",
-        "app\Rillshot.WinUI.exe",
-        "support\start-rillshot.ps1")) {
+        "app\Rillshot.WinUI.exe")) {
         if (-not (Test-Path -LiteralPath (
                 Join-Path $PortableRoot $relativePath) -PathType Leaf)) {
             throw "Portable release layout is missing $relativePath"
@@ -133,4 +132,46 @@ function Assert-PortableReleaseLayout {
         }
     }
     Write-Host "Portable release layout check passed: clear root launcher, isolated app runtime, and no generated user data."
+}
+
+function Write-StableDirectChecksumManifest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$ReleaseRoot,
+        [Parameter(Mandatory = $true)][ValidateSet("Stable", "Preview")]
+        [string]$ReleaseStage,
+        [Parameter(Mandatory = $true)][ValidateSet("Direct", "MicrosoftStore")]
+        [string]$DistributionChannel
+    )
+
+    if ($ReleaseStage -ne "Stable" -or $DistributionChannel -ne "Direct") {
+        return
+    }
+
+    $checksumPath = Join-Path $ReleaseRoot "SHA256SUMS.txt"
+    $packageExtensions = @(".zip", ".msix", ".appx", ".msixbundle", ".appxbundle")
+    $artifacts = @(
+        Get-ChildItem -LiteralPath $ReleaseRoot -Recurse -File -Force |
+            Where-Object {
+                $packageExtensions -contains $_.Extension.ToLowerInvariant()
+            } |
+            Sort-Object FullName
+    )
+    if ($artifacts.Count -eq 0) {
+        throw "Stable direct packaging produced no public artifact for SHA256SUMS.txt."
+    }
+
+    $duplicateNames = @(
+        $artifacts | Group-Object Name | Where-Object { $_.Count -gt 1 }
+    )
+    if ($duplicateNames.Count -ne 0) {
+        throw "Public release artifact names must be unique before SHA256SUMS.txt is generated: $($duplicateNames.Name -join ', ')"
+    }
+
+    $checksumLines = foreach ($artifact in $artifacts) {
+        $artifactHash = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        "$artifactHash  $($artifact.Name)"
+    }
+    $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
+    Write-Host "Stable direct checksum manifest: $checksumPath"
 }

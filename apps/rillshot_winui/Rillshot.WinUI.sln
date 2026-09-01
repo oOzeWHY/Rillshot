@@ -4,6 +4,8 @@ VisualStudioVersion = 18.0.0.0
 MinimumVisualStudioVersion = 18.7.0.0
 Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "Rillshot.WinUI", "Rillshot.WinUI.vcxproj", "{7F514E30-B82B-47C1-8F31-8D6B6855197E}"
 EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "Rillshot.Launcher", "..\rillshot_launcher\Rillshot.Launcher.vcxproj", "{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -20,6 +22,14 @@ Global
 		{7F514E30-B82B-47C1-8F31-8D6B6855197E}.Release|ARM64.Build.0 = Release|ARM64
 		{7F514E30-B82B-47C1-8F31-8D6B6855197E}.Release|x64.ActiveCfg = Release|x64
 		{7F514E30-B82B-47C1-8F31-8D6B6855197E}.Release|x64.Build.0 = Release|x64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Debug|ARM64.Build.0 = Debug|ARM64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Debug|x64.ActiveCfg = Debug|x64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Debug|x64.Build.0 = Debug|x64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Release|ARM64.ActiveCfg = Release|ARM64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Release|ARM64.Build.0 = Release|ARM64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Release|x64.ActiveCfg = Release|x64
+		{D2CC4DC2-53D9-45AA-949E-616C4E4FFCF8}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

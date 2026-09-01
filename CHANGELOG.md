@@ -2,9 +2,20 @@
 
 ## 1.1.9｜2026-08-16
 
+- 2026-09-01 首发第二轮审查：保存对话框限制为 PNG/BMP，包身份探测只接受 Windows 的明确成功状态，设置页纯图标返回按钮补充工具提示；源码身份更新为 `1.1.9-source-ready-reviewed-r2`。
+- 公开 README 按“用途—功能—要求—安装/使用—构建—贡献—许可”重写，删除重复的版本真实性和唯一下载来源提示；工程门禁不再强制把固定版本写入仓库首页。提示词工程升级为 v3.3.0，并补充本地仓库、既有 GitHub 历史和日常推送规则。
+- 2026-08-31 修复源码 ZIP 直接构建：发布脚本不再让 Git 的预期探测失败触发 `NativeCommandError`；无 `.git` 与尚无 commit 的仓库均可构建 Preview，并使用随包源码身份。Stable 继续要求有 commit 的干净 Git 工作树。
+- 源码身份解析从主发布脚本拆为独立模块；Windows CI 新增解压目录、空仓库、干净仓库和脏仓库四类回归测试，工程门禁同步保护入口契约。
+- WinUI 紧凑主页面和结果页现在保留错误的具体原因与下一步，而不是只显示错误标题；提示词工程升级为 v3.2.0，明确“原生、克制、任务优先、可信”的设计理念以及 Fluent 优先、Material 3 仅作交叉检查的边界。
+- 2026-08-30 首发审查：Portable 根入口由 `cmd → PowerShell -ExecutionPolicy Bypass` 改为无控制台原生 `Rillshot.exe`，启动器与 WinUI 主程序统一走 Authenticode 签名和 RFC 3161 时间戳验证。
+- GitHub Actions 固定到完整提交 SHA；Windows 作业在原生适配器测试后实际执行 WinUI Restore、Release Build 和 Portable 打包，不再以静态正则门禁代替前端构建。
+- 删除同盘复制后的逐文件 SHA 和同一交付 ZIP 内的源码/提示词树 SHA；Stable Direct 在签名和打包完成后只生成一份覆盖公开制品的 `SHA256SUMS.txt`，并保留 Authenticode、GitHub asset digest 与 WinGet InstallerSha256。摘要用于完整性核对，不冒充发布者身份。
+- 工程一致性检查改为版本、项目注册、XAML 事件/资源、测试注册、发布布局和 CI 契约等结构性检查；删除 500 行硬上限及与单次事故绑定的实现快照。
+- WinUI 可操作控件显式最小高度统一到 40 epx；无行为的固定页头帮助按钮改为说明图标，并把完整说明关联到 NumberBox 的辅助技术帮助文本。
+- AI 提示词工程升级为 v3.1.0：六个职责文件聚焦产品/设计、算法、验证/发布、维护和研究；本地 Visual Studio/Node/CMake 配置与 Windows 真机待验证边界写入固定工作流，并按 Direct、GitHub、Store、镜像的实际信任边界管理 checksum。
 - 修复 WinUI 工程的 XAML 头文件映射：只有 `MainWindow.xaml.h` 声明 `DependentUpon=MainWindow.xaml`，辅助头不再重复占用映射；发布脚本会清除旧日志，并在 MSBuild 进程误报成功但日志仍含 XAML/WMC/Build FAILED/非零错误汇总时阻断发布。
-- 发布输出目录现在每次构建都重新建立，防止旧 ZIP、MSIX 或依赖清单混入当前 `SHA256SUMS.txt`；MSIX 文件枚举改为先递归列出文件再按扩展名过滤，避免 Windows PowerShell 5.1 对 `-LiteralPath` 与 `-Include` 组合的不一致处理。
-- 本次完整重建候选的可打印源码身份为 `1.1.9-source-ready-xaml-build-gate`，用于与此前同产品版本的混合目录或 overlay 结果区分。
+- 发布输出目录现在每次构建都重新建立，防止旧 ZIP、MSIX 或依赖清单混入当前调用；MSIX 文件枚举改为先递归列出文件再按扩展名过滤，避免 Windows PowerShell 5.1 对 `-LiteralPath` 与 `-Include` 组合的不一致处理。
+- 首轮整体审查后的源码身份为 `1.1.9-source-ready-reviewed`；第二轮审查已升级为 `1.1.9-source-ready-reviewed-r2`。处于 Git 仓库中时，发布元数据另记录实际构建 commit。
 - 原生窗口几何不再由低于 idle 且可能迟到的 `DispatcherQueueTimer` 驱动；改用按标称刷新率夹紧到 4–16.667ms 的短生命周期线程池脉冲，并以原子门合并为最多一个待处理 UI 更新。
 - 主页面与设置页拆成独立 ScrollViewer，过渡期间分别固定起点/终点视口尺寸；大型设置树不再随每个 `MoveAndResize` 采样完整重排。
 - 220ms 透明度、位移与视口中心缩放继续由 compositor 执行；预热扩展到预计最终尺寸，快速反向、减少动画与关闭清理保持。
@@ -15,7 +26,7 @@
 - 重写公开 README：按“用途—下载—使用—故障处理—隐私—构建—贡献”组织，删除对维护者内部 `docs/` 的链接，并将难以理解的算法审查措辞改为普通用户能判断的结果说明。
 - 维护者内部 `docs/` 由 `.gitignore` 排除，工程门禁和 CI 在该目录不存在时仍可运行；提示词工程升级为 v2.8.0，固化公开文档与内部资料的边界。
 - 修正首次发布收尾流程：README 的反馈入口与实际 Issue 表单一致，缺陷表单版本示例更新为 1.1.9；源码门禁允许第三方载荷复核在 `PENDING` 与 `COMPLETE` 两个合法阶段运行，但 Stable 构建仍只接受 `COMPLETE`。
-- GitHub Release 草稿必须同时上传 Portable ZIP、`SHA256SUMS.txt` 和被该哈希文件引用的 NuGet 依赖清单；发布说明保存在仓库外，避免依赖不会上传的内部 `docs/`。提示词工程同步升级为 v2.9.0。
+- GitHub Release 草稿上传 Portable ZIP、同 tag 对应源码、Stable Direct 的单一 `SHA256SUMS.txt` 和必要的依赖/法律材料；上传后仍以平台 asset digest 核对本地 SHA-256。发布说明保存在仓库外，避免依赖不会上传的内部 `docs/`。
 - 重新检查公开中文：Issue 表单、安全政策、README、贡献指南和随包说明改用具体操作，不再用“脱敏”“非机密概要”或“私密报告”等抽象说法；Windows 本机测试说明统一以 MSVC 为正式工具链，GCC/sanitizer 仅作为 GitHub Actions 的补充检查。
 
 ## 1.1.8｜2026-08-14

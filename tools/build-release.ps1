@@ -39,17 +39,21 @@ $cacheRoot = Join-Path $artifactRoot "cache"
 $logRoot = Join-Path $artifactRoot "logs"
 $releaseRoot = Join-Path $artifactRoot "release"
 $version = "1.1.9"
-$sourceRevision = "1.1.9-source-ready-xaml-build-gate"
+$sourceIdentity = "1.1.9-source-ready-reviewed-r2"
 $artifactVersion = $version
 if ($ReleaseStage -eq "Preview") {
     $artifactVersion = "$version-preview.$PreviewNumber"
 }
 $syntaxCheck = Join-Path $scriptRoot "check_powershell_syntax.ps1"
 & $syntaxCheck -SourceRoot $projectRoot
+. (Join-Path $scriptRoot "release\SourceRevision.ps1")
 . (Join-Path $scriptRoot "release\BuildToolDiscovery.ps1")
 . (Join-Path $scriptRoot "release\PortablePayload.ps1")
 . (Join-Path $scriptRoot "release\ReleaseBundle.ps1")
 . (Join-Path $scriptRoot "release\Signing.ps1")
+$sourceRevision = Resolve-RillshotSourceRevision `
+    -ProjectRoot $projectRoot -ReleaseStage $ReleaseStage `
+    -PackagedSourceIdentity $sourceIdentity
 
 function Invoke-Logged(
     [string]$FilePath,
@@ -188,36 +192,6 @@ function Write-NuGetInventory(
     $inventoryLines | Set-Content -LiteralPath $inventoryPath -Encoding ascii
 }
 
-function Write-ReleaseHashes {
-    $hashPath = Join-Path $releaseRoot "SHA256SUMS.txt"
-    $releaseFiles = @(
-        Get-ChildItem -LiteralPath $releaseRoot -Recurse -File |
-            Where-Object {
-                $_.FullName -ne $hashPath -and
-                $_.Extension -in @(
-                    ".zip", ".msix", ".appx", ".msixbundle", ".appxbundle") -or
-                $_.Name -like "nuget-packages-*.txt"
-            } |
-            Sort-Object FullName
-    )
-    if ($releaseFiles.Count -eq 0) {
-        throw "No release archives, packages, or inventories were available for hashing."
-    }
-
-    $hashLines = foreach ($file in $releaseFiles) {
-        Push-Location $releaseRoot
-        try {
-            $relativePath = (Resolve-Path -LiteralPath $file.FullName -Relative).TrimStart([char[]]".\")
-        } finally {
-            Pop-Location
-        }
-        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        "$hash  $relativePath"
-    }
-    $hashLines | Set-Content -LiteralPath $hashPath -Encoding ascii
-    Write-Host "Release hashes: $hashPath"
-}
-
 if ([string]::IsNullOrWhiteSpace($IntermediateRoot)) {
     $IntermediateRoot = Join-Path $artifactRoot "build\winui-intermediate"
 }
@@ -271,7 +245,8 @@ if ($buildsMsix -and $null -ne $signingContext) {
 }
 Write-Host "Rillshot product version: $version"
 Write-Host "Release artifact version: $artifactVersion"
-Write-Host "Source identity: $sourceRevision"
+Write-Host "Source identity: $sourceIdentity"
+Write-Host "Source revision: $sourceRevision"
 
 # Release output is invocation-owned evidence. Always remove it so an
 # incremental build cannot hash or publish archives from an earlier run.
@@ -370,6 +345,8 @@ try {
             Remove-DirectoryIfPresent (Join-Path $winuiRoot "Generated Files")
             Remove-DirectoryIfPresent (
                 Join-Path $IntermediateRoot "Rillshot.WinUI\$Distribution\$Platform\$Configuration")
+            Remove-DirectoryIfPresent (
+                Join-Path $IntermediateRoot "Rillshot.Launcher\$Distribution\$Platform\$Configuration")
         }
 
         $commonProperties = @(
@@ -419,22 +396,24 @@ try {
 
         if ($Distribution -eq "Portable") {
             $binRoot = Join-Path $IntermediateRoot "Rillshot.WinUI\Portable\$Platform\$Configuration\bin"
+            $launcherBinRoot = Join-Path $IntermediateRoot "Rillshot.Launcher\Portable\$Platform\$Configuration\bin"
             if (-not (Test-Path -LiteralPath (Join-Path $binRoot "Rillshot.WinUI.exe") -PathType Leaf)) {
                 throw "The portable executable was not produced below $binRoot"
+            }
+            $launcherExecutable = Join-Path $launcherBinRoot "Rillshot.exe"
+            if (-not (Test-Path -LiteralPath $launcherExecutable -PathType Leaf)) {
+                throw "The portable launcher was not produced below $launcherBinRoot"
             }
             $portableName = "Rillshot-$artifactVersion-win-$Platform-portable"
             $portableRoot = Join-Path $releaseRoot $portableName
             Remove-DirectoryIfPresent $portableRoot
             New-Item -ItemType Directory -Path $portableRoot -Force | Out-Null
             $runtimeRoot = Join-Path $portableRoot "app"
-            $supportRoot = Join-Path $portableRoot "support"
-            New-Item -ItemType Directory -Path $runtimeRoot, $supportRoot -Force | Out-Null
+            New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
             Assert-PortableRuntimePayload $binRoot "MSBuild Portable output"
             Copy-PortablePayloadVerified $binRoot $runtimeRoot
-            Copy-Item -LiteralPath (Join-Path $scriptRoot "run-portable-package.cmd") `
-                -Destination (Join-Path $portableRoot "Rillshot.cmd") -Force
-            Copy-Item -LiteralPath (Join-Path $scriptRoot "test-winui-startup.ps1") `
-                -Destination (Join-Path $supportRoot "start-rillshot.ps1") -Force
+            Copy-Item -LiteralPath $launcherExecutable `
+                -Destination (Join-Path $portableRoot "Rillshot.exe") -Force
             Add-PortableReleaseFiles `
                 -ProjectRoot $projectRoot -ScriptRoot $scriptRoot `
                 -PortableRoot $portableRoot -ProductVersion $version `
@@ -448,10 +427,13 @@ try {
 
             if ($null -ne $signingContext) {
                 $signTool = Find-SignTool
-                $portableExecutable = Join-Path $runtimeRoot "Rillshot.WinUI.exe"
-                Invoke-RillshotSignAndVerify `
-                    -SignTool $signTool -FilePath $portableExecutable `
-                    -LogPath $winuiLog -SigningContext $signingContext
+                foreach ($portableExecutable in @(
+                    (Join-Path $portableRoot "Rillshot.exe"),
+                    (Join-Path $runtimeRoot "Rillshot.WinUI.exe"))) {
+                    Invoke-RillshotSignAndVerify `
+                        -SignTool $signTool -FilePath $portableExecutable `
+                        -LogPath $winuiLog -SigningContext $signingContext
+                }
             } else {
                 Write-Warning "Portable output is unsigned. Supply -SigningCertificateThumbprint before public distribution."
             }
@@ -474,7 +456,7 @@ try {
             $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
             Write-Host "Portable output: $portableRoot"
             Write-Host "Portable archive: $archivePath"
-            Write-Host "SHA-256: $hash"
+            Write-Host "Local archive SHA-256 (compare with the release host digest): $hash"
         } else {
             $packages = @(
                 Get-ChildItem -LiteralPath (Join-Path $releaseRoot "msix-$Platform") `
@@ -511,7 +493,9 @@ try {
         }
     }
 
-    Write-ReleaseHashes
+    Write-StableDirectChecksumManifest `
+        -ReleaseRoot $releaseRoot -ReleaseStage $ReleaseStage `
+        -DistributionChannel $DistributionChannel
     Write-Host "Build pipeline completed successfully."
 } finally {
     Remove-ArtifactDriveMapping $artifactDrive

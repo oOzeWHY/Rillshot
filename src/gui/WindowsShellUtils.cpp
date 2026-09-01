@@ -154,7 +154,8 @@ std::optional<std::wstring> chooseOutputPath(HWND owner, const std::wstring& cur
         if (SUCCEEDED(dialog->GetOptions(&options))) {
             dialog->SetOptions(
                 options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST |
-                FOS_OVERWRITEPROMPT | FOS_NOREADONLYRETURN | FOS_NOCHANGEDIR);
+                FOS_OVERWRITEPROMPT | FOS_NOREADONLYRETURN | FOS_NOCHANGEDIR |
+                FOS_STRICTFILETYPES);
         }
 
         constexpr COMDLG_FILTERSPEC filters[] = {

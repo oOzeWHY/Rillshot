@@ -220,7 +220,7 @@
                                 <TextBlock x:Name="CaptureStateText" Text="正在截图" Style="{StaticResource StateTitleStyle}" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
                                 <TextBlock x:Name="CaptureDestinationText" Text="输出文件" Style="{StaticResource QuietTextStyle}" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="560"/>
                                 <ProgressBar IsIndeterminate="True" MaxWidth="560"/>
-                                <Button x:Name="StopCaptureButton" Click="StopCapture_Click" Content="停止" HorizontalAlignment="Center" MinWidth="112" MinHeight="36" AutomationProperties.Name="停止截图"/>
+                                <Button x:Name="StopCaptureButton" Click="StopCapture_Click" Content="停止" HorizontalAlignment="Center" MinWidth="112" MinHeight="40" AutomationProperties.Name="停止截图"/>
                             </StackPanel>
                         </Border>
 
@@ -244,7 +244,7 @@
                                         <TextBlock x:Name="OutcomeTitle" Text="截图已完成" Style="{StaticResource StateTitleStyle}" AutomationProperties.LiveSetting="Polite"/>
                                         <TextBlock x:Name="OutcomeSubtitle" Text="结果已保存" Style="{StaticResource QuietTextStyle}"/>
                                     </StackPanel>
-                                    <Button x:Name="ResetButton" Grid.Column="2" Click="Reset_Click" Content="新截图" VerticalAlignment="Center" MinWidth="88" MinHeight="36"/>
+                                    <Button x:Name="ResetButton" Grid.Column="2" Click="Reset_Click" Content="新截图" VerticalAlignment="Center" MinWidth="88" MinHeight="40"/>
                                 </Grid>
                                 <Border x:Name="OutcomePathCard" Padding="14,12" CornerRadius="4" Background="{ThemeResource ControlAltFillColorSecondaryBrush}">
                                     <TextBlock x:Name="OutcomePathText" Text="未生成图像" TextWrapping="Wrap" AutomationProperties.Name="结果文件"/>
@@ -255,9 +255,9 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Button x:Name="OpenOutputButton" Click="OpenOutput_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" Content="打开"/>
-                                    <Button x:Name="RevealOutputButton" Grid.Column="1" Click="RevealOutput_Click" HorizontalAlignment="Stretch" Content="定位"/>
-                                    <Button x:Name="CopyOutputPathButton" Grid.Column="2" Click="CopyOutputPath_Click" HorizontalAlignment="Stretch" Content="复制路径"/>
+                                    <Button x:Name="OpenOutputButton" Click="OpenOutput_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" MinHeight="40" Content="打开"/>
+                                    <Button x:Name="RevealOutputButton" Grid.Column="1" Click="RevealOutput_Click" HorizontalAlignment="Stretch" MinHeight="40" Content="定位"/>
+                                    <Button x:Name="CopyOutputPathButton" Grid.Column="2" Click="CopyOutputPath_Click" HorizontalAlignment="Stretch" MinHeight="40" Content="复制路径"/>
                                 </Grid>
                                 <Expander Header="详细信息" IsExpanded="False">
                                     <TextBox x:Name="OutcomeSummary" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Margin="0,10,0,0" AutomationProperties.Name="截图详情"/>
@@ -295,7 +295,8 @@
                                 Padding="0"
                                 Style="{StaticResource ElevatedIconButtonStyle}"
                                 VerticalAlignment="Center"
-                                AutomationProperties.Name="返回主页面">
+                                AutomationProperties.Name="返回主页面"
+                                ToolTipService.ToolTip="返回">
                                 <FontIcon Glyph="&#xE72B;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
                             </Button>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
@@ -376,18 +377,17 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center" Spacing="2">
                                         <TextBlock Text="固定页头" Style="{StaticResource SettingTitleStyle}"/>
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
                                             <TextBlock x:Name="HeaderSummaryText" Text="未设置" Style="{StaticResource QuietTextStyle}" VerticalAlignment="Center"/>
-                                            <Button
-                                                Style="{StaticResource HelpIconButtonStyle}"
-                                                AutomationProperties.Name="固定页头说明"
-                                                AutomationProperties.HelpText="未设置时，所有画面都用于查找重叠内容。设置后，页头在结果中只保留一次，后续画面从页头下方开始匹配。"
-                                                ToolTipService.ToolTip="未设置时，所有画面都用于查找重叠内容。设置后，页头在结果中只保留一次，后续画面从页头下方开始匹配。">
-                                                <FontIcon Glyph="&#xE897;" FontSize="12" AutomationProperties.AccessibilityView="Raw"/>
-                                            </Button>
+                                            <FontIcon
+                                                Glyph="&#xE897;"
+                                                FontSize="12"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                AutomationProperties.AccessibilityView="Raw"
+                                                ToolTipService.ToolTip="未设置时，所有画面都用于查找重叠内容。设置后，页头在结果中只保留一次，后续画面从页头下方开始匹配。"/>
                                         </StackPanel>
                                     </StackPanel>
-                                    <NumberBox x:Name="HeaderHeightBox" Grid.Column="1" Value="0" Minimum="0" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" Header="像素" AutomationProperties.Name="固定页头高度"/>
+                                    <NumberBox x:Name="HeaderHeightBox" Grid.Column="1" Value="0" Minimum="0" Maximum="100000" Style="{StaticResource CompactNumberBoxStyle}" ValueChanged="ConfigurationNumber_ValueChanged" Header="像素" AutomationProperties.Name="固定页头高度" AutomationProperties.HelpText="未设置时，所有画面都用于查找重叠内容。设置后，页头在结果中只保留一次，后续画面从页头下方开始匹配。"/>
                                     <Button x:Name="PickHeaderBoundaryButton" Grid.Column="2" Content="选择" Click="PickHeaderBoundary_Click" IsEnabled="False" Style="{StaticResource SettingActionButtonStyle}" VerticalAlignment="Bottom" AutomationProperties.Name="选择固定页头底部边界"/>
                                     <Button x:Name="ClearHeaderButton" Grid.Column="3" Content="清除" Click="ClearHeader_Click" Style="{StaticResource SettingActionButtonStyle}" VerticalAlignment="Bottom" IsEnabled="False" AutomationProperties.Name="清除固定页头"/>
                                 </Grid>
