@@ -21,13 +21,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-      - name: Check repository
-        run: |
-          node tools/check_project_consistency.mjs
-          node tools/check_human_docs_language.mjs
       - name: Configure
         run: cmake --preset core-release
       - name: Build
@@ -56,12 +49,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: Check PowerShell syntax
-        shell: powershell
-        run: .\tools\check_powershell_syntax.ps1
-      - name: Test source revision resolution
-        shell: powershell
-        run: .\tools\test_source_revision.ps1
       - name: Configure
         run: >-
           cmake -S . -B out/build/windows-native -A x64

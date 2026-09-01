@@ -64,29 +64,3 @@ function Assert-CMakeGeneratorAvailable(
     Write-Host "CMake generator available: $Generator"
 }
 
-function Find-SignTool {
-    $kitsRoot = Join-Path ([Environment]::GetFolderPath(
-        [Environment+SpecialFolder]::ProgramFilesX86)) "Windows Kits\10\bin"
-    $candidates = @(
-        Get-ChildItem -LiteralPath $kitsRoot -Filter signtool.exe `
-            -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.DirectoryName -match "\\x64$" }
-    )
-    $candidate = $candidates |
-        Sort-Object `
-            @{ Expression = {
-                $sdkDirectory = Split-Path -Parent $_.DirectoryName
-                $parsedVersion = [version]"0.0"
-                [void][version]::TryParse(
-                    (Split-Path -Leaf $sdkDirectory),
-                    [ref]$parsedVersion)
-                $parsedVersion
-            }; Descending = $true }, `
-            @{ Expression = { $_.FullName }; Descending = $true } |
-        Select-Object -First 1
-    if ($null -eq $candidate) {
-        throw "SignTool.exe was not found. Install the Windows SDK signing tools."
-    }
-    Write-Host "SignTool: $($candidate.FullName) ($($candidate.VersionInfo.FileVersion))"
-    return $candidate.FullName
-}

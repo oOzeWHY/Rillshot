@@ -14,7 +14,6 @@ echo.
 if not "%RESULT%"=="0" (
   echo Build failed with exit code %RESULT%.
   echo Review the first PowerShell error above; later messages may only describe cleanup.
-  echo Check ExecutionPolicy only if PowerShell explicitly says that a script is not digitally signed.
 ) else (
   echo Preview build completed. Check artifacts\release and test the ZIP from a clean directory.
 )

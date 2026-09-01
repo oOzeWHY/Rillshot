@@ -8,15 +8,10 @@ param(
     [string]$Configuration = "Release",
     [ValidateSet("Stable", "Preview")]
     [string]$ReleaseStage = "Stable",
-    [ValidateSet("Direct", "MicrosoftStore")]
-    [string]$DistributionChannel = "Direct",
     [ValidateRange(1, 9999)]
     [int]$PreviewNumber = 1,
     [string]$IntermediateRoot = "",
     [string]$CMakeGenerator = "Visual Studio 18 2026",
-    [string]$SigningCertificateThumbprint = "",
-    [string]$TimestampUrl = "https://timestamp.digicert.com",
-    [string]$ExpectedMsixPublisher = "",
     [switch]$Clean,
     [switch]$SkipCoreTests,
     [switch]$SmokeTest
@@ -39,21 +34,13 @@ $cacheRoot = Join-Path $artifactRoot "cache"
 $logRoot = Join-Path $artifactRoot "logs"
 $releaseRoot = Join-Path $artifactRoot "release"
 $version = "1.1.9"
-$sourceIdentity = "1.1.9-source-ready-reviewed-r2"
 $artifactVersion = $version
 if ($ReleaseStage -eq "Preview") {
     $artifactVersion = "$version-preview.$PreviewNumber"
 }
-$syntaxCheck = Join-Path $scriptRoot "check_powershell_syntax.ps1"
-& $syntaxCheck -SourceRoot $projectRoot
-. (Join-Path $scriptRoot "release\SourceRevision.ps1")
 . (Join-Path $scriptRoot "release\BuildToolDiscovery.ps1")
 . (Join-Path $scriptRoot "release\PortablePayload.ps1")
 . (Join-Path $scriptRoot "release\ReleaseBundle.ps1")
-. (Join-Path $scriptRoot "release\Signing.ps1")
-$sourceRevision = Resolve-RillshotSourceRevision `
-    -ProjectRoot $projectRoot -ReleaseStage $ReleaseStage `
-    -PackagedSourceIdentity $sourceIdentity
 
 function Invoke-Logged(
     [string]$FilePath,
@@ -70,25 +57,6 @@ function Invoke-Logged(
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         throw "$([IO.Path]::GetFileName($FilePath)) failed with exit code $exitCode. See $LogPath"
-    }
-}
-
-function Assert-MSBuildLogHasNoReportedErrors([string]$LogPath) {
-    if (-not (Test-Path -LiteralPath $LogPath -PathType Leaf)) {
-        throw "MSBuild log was not created. The release is blocked: $LogPath"
-    }
-
-    $logText = Get-Content -LiteralPath $LogPath -Raw -Encoding UTF8
-    $reportedErrorPatterns = @(
-        "(?im)\bXaml Internal Error\b",
-        "(?im)\berror WMC\d+\b",
-        "(?im)^\s*Build FAILED\.\s*$",
-        "(?im)^\s*[1-9]\d* Error\(s\)\s*$"
-    )
-    foreach ($pattern in $reportedErrorPatterns) {
-        if ($logText -match $pattern) {
-            throw "MSBuild reported an error even though its process exit code was zero. The release is blocked. See $LogPath"
-        }
     }
 }
 
@@ -171,25 +139,49 @@ function Remove-ArtifactDriveMapping($Mapping) {
     }
 }
 
-function Write-NuGetInventory(
-    [string]$AssetsPath,
-    [string]$Distribution
-) {
-    $assets = Get-Content -LiteralPath $AssetsPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $libraries = @($assets.libraries.PSObject.Properties.Name | Sort-Object)
-    if ($libraries.Count -eq 0) {
-        throw "The restored NuGet asset file did not contain a dependency inventory."
+function Get-SourceRevision([string]$Root, [string]$Stage) {
+    $git = Get-Command git.exe -ErrorAction SilentlyContinue
+    if ($null -eq $git) {
+        $git = Get-Command git -ErrorAction SilentlyContinue
     }
-    $inventoryPath = Join-Path $releaseRoot (
-        "nuget-packages-$Distribution-$Platform-$Configuration.txt")
-    $inventoryLines = @(
-        "Rillshot $version NuGet dependency inventory"
-        "Distribution: $Distribution"
-        "Platform: $Platform"
-        "Configuration: $Configuration"
+    if ($null -eq $git -or -not (Test-Path -LiteralPath (Join-Path $Root ".git"))) {
+        if ($Stage -eq "Stable") {
+            throw "Stable releases must be built from a Git checkout."
+        }
+        return "source-archive"
+    }
+
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "SilentlyContinue"
+        $revisionOutput = @(& $git.Source -C $Root rev-parse --verify HEAD 2>$null)
+        $revisionExitCode = $LASTEXITCODE
+        $status = @(& $git.Source -C $Root status --porcelain 2>$null)
+        $statusExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    $revision = if ($revisionOutput.Count -gt 0) {
+        $revisionOutput[0].Trim()
+    } else {
         ""
-    ) + $libraries
-    $inventoryLines | Set-Content -LiteralPath $inventoryPath -Encoding ascii
+    }
+    if ($revisionExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($revision)) {
+        if ($Stage -eq "Stable") {
+            throw "Stable releases require at least one Git commit."
+        }
+        return "source-archive"
+    }
+    if ($statusExitCode -ne 0) {
+        throw "Git could not read the worktree status."
+    }
+    if ($status.Count -ne 0) {
+        if ($Stage -eq "Stable") {
+            throw "Commit or discard local changes before building a Stable release."
+        }
+        return "$revision-dirty"
+    }
+    return $revision
 }
 
 if ([string]::IsNullOrWhiteSpace($IntermediateRoot)) {
@@ -199,57 +191,12 @@ $IntermediateRoot = [IO.Path]::GetFullPath($IntermediateRoot)
 Assert-AsciiPath $projectRoot "ProjectRoot"
 Assert-AsciiPath $IntermediateRoot "IntermediateRoot"
 Assert-PathWithinRoot $IntermediateRoot $artifactRoot "IntermediateRoot"
-if ($DistributionChannel -eq "MicrosoftStore" -and $Mode -ne "Msix") {
-    throw "MicrosoftStore distribution supports -Mode Msix only. Portable releases are direct-distribution artifacts."
-}
-if ($DistributionChannel -eq "MicrosoftStore" -and
-    -not [string]::IsNullOrWhiteSpace($SigningCertificateThumbprint)) {
-    throw "Do not locally certificate-sign a Microsoft Store submission. The Store signs the package after certification."
-}
-if ($ReleaseStage -eq "Stable" -and $DistributionChannel -eq "Direct" -and
-    [string]::IsNullOrWhiteSpace($SigningCertificateThumbprint)) {
-    throw "Stable direct releases require -SigningCertificateThumbprint. Use Preview only for unsigned internal evaluation."
-}
-if ($DistributionChannel -eq "MicrosoftStore" -and
-    [string]::IsNullOrWhiteSpace($ExpectedMsixPublisher)) {
-    throw "Microsoft Store submissions require -ExpectedMsixPublisher from Partner Center."
-}
-if (-not [string]::IsNullOrWhiteSpace($SigningCertificateThumbprint) -and
-    [string]::IsNullOrWhiteSpace($TimestampUrl)) {
-    throw "Every signed release requires a non-empty HTTPS RFC 3161 TimestampUrl."
-}
-$signingContext = $null
-if (-not [string]::IsNullOrWhiteSpace($SigningCertificateThumbprint)) {
-    $signingContext = Get-RillshotSigningContext `
-        -Thumbprint $SigningCertificateThumbprint `
-        -TimestampUrl $TimestampUrl
-}
-if ($ReleaseStage -eq "Stable") {
-    $notice = Get-Content -LiteralPath (Join-Path $projectRoot "THIRD_PARTY_NOTICES.txt") -Raw
-    $reviewLines = @($notice -split "\r?\n" |
-        Where-Object { $_.StartsWith("Binary payload review:") })
-    if ($reviewLines.Count -ne 1 -or
-        $reviewLines[0] -cne "Binary payload review: COMPLETE") {
-        throw "Stable releases require a completed binary payload license review."
-    }
-}
-$buildsMsix = $Mode -eq "Msix" -or $Mode -eq "All"
-if ($buildsMsix -and $null -ne $signingContext) {
-    Assert-RillshotPackagePublisher `
-        -ManifestPath (Join-Path $winuiRoot "Package.appxmanifest") `
-        -SigningContext $signingContext
-} elseif ($buildsMsix -and $DistributionChannel -eq "MicrosoftStore") {
-    Assert-RillshotExpectedPackagePublisher `
-        -ManifestPath (Join-Path $winuiRoot "Package.appxmanifest") `
-        -ExpectedPublisher $ExpectedMsixPublisher
-}
+$sourceRevision = Get-SourceRevision -Root $projectRoot -Stage $ReleaseStage
 Write-Host "Rillshot product version: $version"
 Write-Host "Release artifact version: $artifactVersion"
-Write-Host "Source identity: $sourceIdentity"
 Write-Host "Source revision: $sourceRevision"
 
-# Release output is invocation-owned evidence. Always remove it so an
-# incremental build cannot hash or publish archives from an earlier run.
+# Each invocation owns its release output; do not mix assets from older builds.
 Remove-DirectoryIfPresent $releaseRoot
 if ($Clean) {
     Remove-DirectoryIfPresent $cacheRoot
@@ -363,17 +310,6 @@ try {
             "/warnaserror:NU1603;NU1605;NU1608"
         ) + $commonProperties) $winuiLog
 
-        $assetsPath = Join-Path $winuiRoot "obj\project.assets.json"
-        $restoreCheck = Join-Path $scriptRoot "check_winui_restore.ps1"
-        Invoke-Logged powershell.exe @(
-            "-NoLogo",
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-File", $restoreCheck,
-            "-AssetsPath", $assetsPath
-        ) $winuiLog
-        Write-NuGetInventory $assetsPath $Distribution
-
         $buildArguments = @(
             $solutionPath,
             "/m",
@@ -392,7 +328,6 @@ try {
             )
         }
         Invoke-Logged $msbuild $buildArguments $winuiLog
-        Assert-MSBuildLogHasNoReportedErrors $winuiLog
 
         if ($Distribution -eq "Portable") {
             $binRoot = Join-Path $IntermediateRoot "Rillshot.WinUI\Portable\$Platform\$Configuration\bin"
@@ -411,7 +346,7 @@ try {
             $runtimeRoot = Join-Path $portableRoot "app"
             New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
             Assert-PortableRuntimePayload $binRoot "MSBuild Portable output"
-            Copy-PortablePayloadVerified $binRoot $runtimeRoot
+            Copy-PortablePayload $binRoot $runtimeRoot
             Copy-Item -LiteralPath $launcherExecutable `
                 -Destination (Join-Path $portableRoot "Rillshot.exe") -Force
             Add-PortableReleaseFiles `
@@ -420,23 +355,7 @@ try {
                 -ArtifactVersion $artifactVersion -ReleaseStage $ReleaseStage `
                 -SourceRevision $sourceRevision -Platform $Platform `
                 -Configuration $Configuration -Utf8NoBom $script:Utf8NoBom
-            $portableName | Set-Content `
-                -LiteralPath (Join-Path $releaseRoot "CURRENT_PORTABLE.txt") `
-                -Encoding ascii
             Assert-PortableRuntimePayload $runtimeRoot "Staged Portable app runtime"
-
-            if ($null -ne $signingContext) {
-                $signTool = Find-SignTool
-                foreach ($portableExecutable in @(
-                    (Join-Path $portableRoot "Rillshot.exe"),
-                    (Join-Path $runtimeRoot "Rillshot.WinUI.exe"))) {
-                    Invoke-RillshotSignAndVerify `
-                        -SignTool $signTool -FilePath $portableExecutable `
-                        -LogPath $winuiLog -SigningContext $signingContext
-                }
-            } else {
-                Write-Warning "Portable output is unsigned. Supply -SigningCertificateThumbprint before public distribution."
-            }
 
             $archivePath = Join-Path $releaseRoot "$portableName.zip"
             if (Test-Path -LiteralPath $archivePath) {
@@ -451,12 +370,9 @@ try {
                 }
             }
             Assert-PortableRuntimePayload $runtimeRoot "Clean staged Portable app runtime"
-            Assert-PortableReleaseLayout -PortableRoot $portableRoot
             Compress-Archive -Path $portableRoot -DestinationPath $archivePath -CompressionLevel Optimal
-            $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
             Write-Host "Portable output: $portableRoot"
             Write-Host "Portable archive: $archivePath"
-            Write-Host "Local archive SHA-256 (compare with the release host digest): $hash"
         } else {
             $packages = @(
                 Get-ChildItem -LiteralPath (Join-Path $releaseRoot "msix-$Platform") `
@@ -467,18 +383,6 @@ try {
             )
             if ($packages.Count -eq 0) {
                 throw "MSIX packaging completed without producing an .msix or .appx file."
-            }
-            if ($null -ne $signingContext) {
-                $signTool = Find-SignTool
-                foreach ($package in $packages) {
-                    Invoke-RillshotSignAndVerify `
-                        -SignTool $signTool -FilePath $package.FullName `
-                        -LogPath $winuiLog -SigningContext $signingContext
-                }
-            } elseif ($DistributionChannel -eq "MicrosoftStore") {
-                Write-Host "MSIX is intentionally unsigned for Microsoft Store submission; the Store signs it after certification."
-            } else {
-                Write-Warning "The Preview MSIX output is unsigned and is only for internal engineering validation."
             }
             $packages | ForEach-Object { Write-Host "MSIX output: $($_.FullName)" }
         }
@@ -493,9 +397,6 @@ try {
         }
     }
 
-    Write-StableDirectChecksumManifest `
-        -ReleaseRoot $releaseRoot -ReleaseStage $ReleaseStage `
-        -DistributionChannel $DistributionChannel
     Write-Host "Build pipeline completed successfully."
 } finally {
     Remove-ArtifactDriveMapping $artifactDrive

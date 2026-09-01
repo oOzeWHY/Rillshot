@@ -9,16 +9,8 @@ Rillshot 1.1.9 Portable
 3. 选择截图区域、滚动点与方向，然后开始截图。
 4. 截图和诊断默认保存在 app\captures 与 app\logs；分享前请删除账号、工作内容和本地路径。
 
-安全核对
-- 只从发布者给出的正式下载页获取文件。
-- 核对 ZIP 的 SHA-256 与下载页为该资产显示的 digest，或与同一正式 Release 中 SHA256SUMS.txt 的对应行核对。
-- 摘要一致只能说明文件一致；SHA256SUMS.txt 必须与制品来自同一可信发布页，不能代替数字签名。
-- 在 Rillshot.exe 的“属性 > 数字签名”中核对发布者和时间戳。
-- 若数字签名缺失、无效或发布者不符，请停止运行并联系发布者。
-
 许可、源码与反馈
 LICENSE、COPYRIGHT.md、SOURCE_OFFER.md 和 THIRD_PARTY_NOTICES.txt 说明社区许可、权利链、对应源码获取与第三方材料。
-公开二进制必须与构建它的 v1.1.9 tag 对应源码在同一发布位置等价提供；若下载页没有源码入口，请停止分发。
 RELEASE-METADATA.json 记录 productVersion、artifactVersion、sourceRevision 和平台信息。
 报告问题时请复制 FEEDBACK-TEMPLATE-ZH.md；发送图片或 JSONL 前，请逐项检查并删除不愿公开的内容。
 

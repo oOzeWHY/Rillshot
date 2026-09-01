@@ -9,13 +9,6 @@ Rillshot 1.1.9 预览包
 3. 选择截图区域、滚动点与方向，然后开始截图。
 4. 截图和诊断默认保存在 app\captures 与 app\logs；分享前请删除账号、工作内容和本地路径。
 
-安全核对
-- 只从发布者给出的原始链接下载。
-- 核对 ZIP 的 SHA-256 与下载页为该资产显示的 digest。
-- Preview 默认不附 SHA256SUMS.txt；摘要一致只能说明文件一致，不能单独证明发布者身份。
-- 若发布者声明已签名，请在 Rillshot.exe 的“属性 > 数字签名”中核对发布者和时间戳。
-- 未签名预览包可能触发 Windows 安全提示；不确定来源时不要绕过提示。
-
 反馈
 请复制 FEEDBACK-TEMPLATE-ZH.md，填写 RELEASE-METADATA.json 中的 artifactVersion、
 sourceRevision 和平台信息。发送图片或 JSONL 前，请逐项检查并删除不愿公开的内容。

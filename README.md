@@ -8,7 +8,8 @@
   <a href="../../releases/latest">下载</a> ·
   <a href="#使用方法">使用方法</a> ·
   <a href="#从源码构建">从源码构建</a> ·
-  <a href="CONTRIBUTING.md">参与贡献</a>
+  <a href="CONTRIBUTING.md">参与贡献</a> ·
+  <a href="RELEASING.md">发布版本</a>
 </p>
 
 # Rillshot
@@ -75,7 +76,6 @@ Portable 版本将截图、设置和启动日志保存在解压目录的 `app` �
 - Visual Studio 2026 18.7 或更高版本；
 - “使用 C++ 的桌面开发”和“Windows 应用开发”工作负载；
 - Windows SDK、MSBuild C++ 工具和 CMake；
-- Node.js 24；
 - CMake 4.2 或更高版本。
 
 将源码放在较短的纯 ASCII 路径，例如 `C:\Users\msi\Desktop\Rillshot`。在源码根目录运行：
@@ -84,13 +84,11 @@ Portable 版本将截图、设置和启动日志保存在解压目录的 `app` �
 build-release.cmd
 ```
 
-命令会执行源码检查、核心测试、WinUI 构建、依赖检查和启动冒烟，并在 `artifacts\release` 生成未签名的 Preview Portable 包。源码 ZIP 不含 `.git` 时也可以构建 Preview；Stable 构建要求有提交且工作树干净。
+命令会执行核心测试、WinUI 构建和启动冒烟，并在 `artifacts\release` 生成 Preview Portable 包。源码 ZIP 不含 `.git` 时也可以构建 Preview；Stable 构建要求有提交且工作树干净。
 
 只运行平台无关测试时，可在 Developer PowerShell for Visual Studio 中执行：
 
 ```powershell
-node .\tools\check_project_consistency.mjs
-node .\tools\check_human_docs_language.mjs
 cmake -S . -B out\build\core-msvc -A x64 `
   -DRILLSHOT_BUILD_TESTS=ON `
   -DRILLSHOT_BUILD_WINDOWS_APPS=OFF `
@@ -110,13 +108,15 @@ ctest --test-dir out\build\core-msvc -C Release --output-on-failure
 | `apps/rillshot_winui` | C++/WinRT WinUI 3 前端 |
 | `apps/rillshot_launcher` | Portable 原生启动器 |
 | `tests` | 核心算法与行为测试 |
-| `tools` | 检查、构建、打包和签名脚本 |
+| `tools` | 构建、打包和启动测试脚本 |
 
 ## 参与贡献
 
 缺陷报告、测试、文档修正和范围明确的代码改进均可提交。开始前请阅读 [贡献指南](CONTRIBUTING.md) 和 [行为准则](CODE_OF_CONDUCT.md)。安全问题请按 [安全政策](SECURITY.md) 报告。
 
 用户可见的变化应同步更新 [变更记录](CHANGELOG.md)。
+
+维护者发布 GitHub Release 时请按 [发布指南](RELEASING.md) 操作。
 
 ## 许可证
 

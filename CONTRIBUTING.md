@@ -12,10 +12,9 @@
 ## 开发流程
 
 1. 从小而单一的变更开始，不在一个 PR 中混合无关重构。
-2. 先运行 `node tools/check_project_consistency.mjs` 和 `node tools/check_human_docs_language.mjs`。
-3. 在 Windows 上使用 MSVC 构建并运行全部核心测试。Windows/WinUI 改动还须说明实际构建和人工验证范围；无需为本项目额外安装 GCC。
-4. 修复缺陷时补充能在修复前失败的回归测试；不将静态检查写成真机验收。
-5. 更新用户可见行为时，同步 `CHANGELOG.md` 和当前发行说明；AI 提示词包在仓库外独立维护，不随 PR 提交。
+2. 在 Windows 上使用 MSVC 构建并运行全部核心测试。Windows/WinUI 改动还须说明实际构建和人工验证范围；无需为本项目额外安装 GCC。
+3. 修复缺陷时补充能在修复前失败的回归测试；不使用源码文本匹配代替编译、行为测试或真机验收。
+4. 更新用户可见行为时，同步 `CHANGELOG.md` 和当前发行说明；AI 提示词包在仓库外独立维护，不随 PR 提交。
 
 ## 代码与风格
 

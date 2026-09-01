@@ -1,5 +1,0 @@
-Rillshot product version: 1.1.9
-Source identity: 1.1.9-source-ready-reviewed-r2
-Identity date: 2026-09-01
-
-此身份表示 1.1.9 首发源码已完成第二轮整体审查：Portable 使用原生启动器，CI 执行真实 WinUI 构建，保存对话框只接受支持的图片格式，包身份探测显式失败，公开 README 与 GitHub 工作流已复核。提示词工程作为平级独立包维护。此身份不代替 Git commit 或 tag；公开构建必须在 RELEASE-METADATA.json 中记录最终提交，并从不可移动的 v1.1.9 tag 生成。
