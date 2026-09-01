@@ -114,23 +114,6 @@ int testSmootherstepProgressIsBoundedAndSymmetric() {
     return EXIT_SUCCESS;
 }
 
-int testNavigationPulseIntervalTracksRefreshRateAndStaysBounded() {
-    using rillshot::gui::geometry::navigationPulseIntervalMicros;
-    if (navigationPulseIntervalMicros(60) != 16'667 ||
-        navigationPulseIntervalMicros(120) != 8'333 ||
-        navigationPulseIntervalMicros(144) != 6'944 ||
-        navigationPulseIntervalMicros(240) != 4'167 ||
-        navigationPulseIntervalMicros(500) != 4'000) {
-        return fail("navigation pulse intervals must follow supported display rates");
-    }
-    if (navigationPulseIntervalMicros(0) != 16'667 ||
-        navigationPulseIntervalMicros(29) != 16'667 ||
-        navigationPulseIntervalMicros(501) != 16'667) {
-        return fail("invalid display rates must use the bounded 60 Hz fallback");
-    }
-    return EXIT_SUCCESS;
-}
-
 int testWindowSizeFitsWorkAreaAndPreservesCentre() {
     using rillshot::gui::geometry::WindowBounds;
     using rillshot::gui::geometry::fitWindowSizeAroundCenter;
@@ -247,7 +230,6 @@ int main() {
     if (testCoordinateInterpolationDoesNotOverflow() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testDipScalingDoesNotOverflow() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testSmootherstepProgressIsBoundedAndSymmetric() != EXIT_SUCCESS) return EXIT_FAILURE;
-    if (testNavigationPulseIntervalTracksRefreshRateAndStaysBounded() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testWindowSizeFitsWorkAreaAndPreservesCentre() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testAdaptiveWindowSizeCoversCommonDisplays() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testWindowBoundsInterpolationUsesSafeCoordinateMath() != EXIT_SUCCESS) return EXIT_FAILURE;

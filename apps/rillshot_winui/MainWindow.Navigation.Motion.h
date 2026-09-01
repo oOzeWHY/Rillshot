@@ -4,10 +4,12 @@
 
 namespace winrt::Rillshot::WinUI::implementation::navigation_motion {
 
-inline constexpr auto navigationDuration = std::chrono::milliseconds(220);
-inline constexpr auto navigationResizeFallbackInterval = std::chrono::microseconds(16'667);
-inline constexpr auto navigationResizeMinimumInterval = std::chrono::microseconds(4'000);
-inline constexpr auto navigationResizeMaximumInterval = std::chrono::microseconds(16'667);
+// Fluent uses a fast 167 ms exit and a 250 ms normal entrance. The native
+// window resize follows the longer entrance clock so all visible state settles
+// together without making the outgoing page linger.
+inline constexpr auto outgoingDuration = std::chrono::milliseconds(167);
+inline constexpr auto incomingDuration = std::chrono::milliseconds(250);
+inline constexpr auto navigationDuration = incomingDuration;
 inline constexpr float navigationDistance = 10.0F;
 inline constexpr float outgoingScale = 0.992F;
 inline constexpr float incomingScale = 0.985F;

@@ -33,7 +33,7 @@ $artifactRoot = Join-Path $projectRoot "artifacts"
 $cacheRoot = Join-Path $artifactRoot "cache"
 $logRoot = Join-Path $artifactRoot "logs"
 $releaseRoot = Join-Path $artifactRoot "release"
-$version = "1.1.9"
+$version = "1.2.0"
 $artifactVersion = $version
 if ($ReleaseStage -eq "Preview") {
     $artifactVersion = "$version-preview.$PreviewNumber"
@@ -62,7 +62,7 @@ function Invoke-Logged(
 
 function Assert-AsciiPath([string]$PathValue, [string]$Label) {
     if ($PathValue -match "[^\x00-\x7F]") {
-        throw "$Label must use a short ASCII-only path because CppWinRT mdmerge cannot reliably process non-ASCII response-file paths. Move the source tree to a path such as D:\Dev\Rillshot\v1.1.9 and retry: $PathValue"
+        throw "$Label must use a short ASCII-only path because CppWinRT mdmerge cannot reliably process non-ASCII response-file paths. Move the source tree to a path such as D:\src\Rillshot and retry: $PathValue"
     }
 }
 
@@ -85,7 +85,7 @@ function Assert-PathLengthBudget(
     [int]$MaximumLength = 259
 ) {
     if ($PathValue.Length -gt $MaximumLength) {
-        throw "$Label would be $($PathValue.Length) characters, exceeding the safe Windows path budget of $MaximumLength. Move the source tree to a shorter ASCII-only path, such as D:\Dev\Rillshot\v1.1.9, and retry: $PathValue"
+        throw "$Label would be $($PathValue.Length) characters, exceeding the safe Windows path budget of $MaximumLength. Move the source tree to a shorter ASCII-only path, such as D:\src\Rillshot, and retry: $PathValue"
     }
 }
 
@@ -239,31 +239,40 @@ try {
     Write-Host "Visual Studio: $visualStudioRoot"
     Write-Host "MSBuild: $msbuild ($msbuildVersion)"
 
-    if (-not $SkipCoreTests) {
-        $cmake = Find-CMake $visualStudioRoot
-        Assert-CMakeGeneratorAvailable $cmake $CMakeGenerator
-        $ctest = Join-Path (Split-Path -Parent $cmake) "ctest.exe"
-        if (-not (Test-Path -LiteralPath $ctest -PathType Leaf)) {
-            throw "ctest.exe was not found next to cmake.exe."
-        }
+    $cmake = Find-CMake $visualStudioRoot
+    Assert-CMakeGeneratorAvailable $cmake $CMakeGenerator
+    $ctest = Join-Path (Split-Path -Parent $cmake) "ctest.exe"
+    if (-not (Test-Path -LiteralPath $ctest -PathType Leaf)) {
+        throw "ctest.exe was not found next to cmake.exe."
+    }
 
-        $cmakeBuildRoot = Join-Path $artifactRoot "build\cmake-$Platform"
-        if ($Clean) {
-            Remove-DirectoryIfPresent $cmakeBuildRoot
-        }
-        $coreLog = Join-Path $logRoot "core-$Platform-$Configuration.log"
-        if (Test-Path -LiteralPath $coreLog) {
-            Remove-Item -LiteralPath $coreLog -Force
-        }
+    $cmakeBuildRoot = Join-Path $artifactRoot "build\cmake-$Platform"
+    if ($Clean) {
+        Remove-DirectoryIfPresent $cmakeBuildRoot
+    }
+    $coreLog = Join-Path $logRoot "core-$Platform-$Configuration.log"
+    if (Test-Path -LiteralPath $coreLog) {
+        Remove-Item -LiteralPath $coreLog -Force
+    }
+    $buildTests = if ($SkipCoreTests) { "OFF" } else { "ON" }
 
+    Invoke-Logged $cmake @(
+        "-S", $projectRoot,
+        "-B", $cmakeBuildRoot,
+        "-G", $CMakeGenerator,
+        "-A", $Platform,
+        "-DRILLSHOT_BUILD_TESTS=$buildTests",
+        "-DRILLSHOT_BUILD_WINDOWS_APPS=ON",
+        "-DRILLSHOT_WARNINGS_AS_ERRORS=ON"
+    ) $coreLog
+    if ($SkipCoreTests) {
         Invoke-Logged $cmake @(
-            "-S", $projectRoot,
-            "-B", $cmakeBuildRoot,
-            "-G", $CMakeGenerator,
-            "-A", $Platform,
-            "-DRILLSHOT_BUILD_TESTS=ON",
-            "-DRILLSHOT_WARNINGS_AS_ERRORS=ON"
+            "--build", $cmakeBuildRoot,
+            "--config", $Configuration,
+            "--target", "rillshot_cli",
+            "--parallel"
         ) $coreLog
+    } else {
         Invoke-Logged $cmake @(
             "--build", $cmakeBuildRoot,
             "--config", $Configuration,
@@ -278,6 +287,10 @@ try {
         } else {
             Write-Warning "ARM64 tests were built but not executed on this host."
         }
+    }
+    $cliExecutable = Join-Path $cmakeBuildRoot "$Configuration\rillshot-cli.exe"
+    if (-not (Test-Path -LiteralPath $cliExecutable -PathType Leaf)) {
+        throw "The CLI executable was not produced at $cliExecutable"
     }
 
     function Build-WinUI([ValidateSet("Portable", "Msix")][string]$Distribution) {
@@ -349,6 +362,16 @@ try {
             Copy-PortablePayload $binRoot $runtimeRoot
             Copy-Item -LiteralPath $launcherExecutable `
                 -Destination (Join-Path $portableRoot "Rillshot.exe") -Force
+            Copy-Item -LiteralPath $cliExecutable `
+                -Destination (Join-Path $portableRoot "rillshot-cli.exe") -Force
+            if ($Platform -eq "x64") {
+                $cliVersionOutput = @(& (Join-Path $portableRoot "rillshot-cli.exe") --version 2>&1)
+                $cliExitCode = $LASTEXITCODE
+                $cliVersionText = ($cliVersionOutput -join "`n").Trim()
+                if ($cliExitCode -ne 0 -or $cliVersionText -ne "Rillshot $version") {
+                    throw "The staged CLI version check failed."
+                }
+            }
             Add-PortableReleaseFiles `
                 -ProjectRoot $projectRoot -ScriptRoot $scriptRoot `
                 -PortableRoot $portableRoot -ProductVersion $version `
@@ -356,6 +379,10 @@ try {
                 -SourceRevision $sourceRevision -Platform $Platform `
                 -Configuration $Configuration -Utf8NoBom $script:Utf8NoBom
             Assert-PortableRuntimePayload $runtimeRoot "Staged Portable app runtime"
+            if (-not (Test-Path -LiteralPath (
+                    Join-Path $portableRoot "rillshot-cli.exe") -PathType Leaf)) {
+                throw "The staged Portable package is missing rillshot-cli.exe"
+            }
 
             $archivePath = Join-Path $releaseRoot "$portableName.zip"
             if (Test-Path -LiteralPath $archivePath) {

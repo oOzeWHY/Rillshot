@@ -163,9 +163,7 @@ private:
     rillshot::gui::GlobalHotkey globalHotkey_;
     rillshot::platform::UserPreferences preferences_;
     struct PreferenceSaveState;
-    struct NavigationResizePulseState;
     std::shared_ptr<PreferenceSaveState> preferenceSaveState_;
-    std::shared_ptr<NavigationResizePulseState> navigationResizePulseState_;
     winrt::event_token appWindowClosingToken_{};
     bool initialized_ = false;
     bool applyingPreferences_ = false;
@@ -183,6 +181,7 @@ private:
     bool captureWindowPlacementValid_ = false;
     bool navigationBatchCompletionSubscribed_ = false;
     bool navigationPrewarmRenderedSubscribed_ = false;
+    bool navigationResizeRenderingSubscribed_ = false;
     bool navigationWindowResizePrepared_ = false;
     bool navigationViewportsIsolated_ = false;
     bool navigationResizeTargetOpen_ = false;
@@ -198,12 +197,11 @@ private:
     Microsoft::UI::Composition::Vector3KeyFrameAnimation incomingTranslationAnimation_{nullptr};
     Microsoft::UI::Composition::Vector3KeyFrameAnimation outgoingScaleAnimation_{nullptr};
     Microsoft::UI::Composition::Vector3KeyFrameAnimation incomingScaleAnimation_{nullptr};
-    Windows::System::Threading::ThreadPoolTimer navigationResizeTimer_{nullptr};
     Windows::UI::ViewManagement::UISettings navigationUiSettings_{nullptr};
     winrt::event_token navigationBatchCompletedToken_{};
     winrt::event_token navigationPrewarmRenderedToken_{};
+    winrt::event_token navigationResizeRenderingToken_{};
     std::chrono::steady_clock::time_point navigationResizeStartedAt_{};
-    std::chrono::microseconds navigationResizePulseInterval_{16'667};
     rillshot::gui::geometry::WindowBounds navigationResizeStart_{};
     rillshot::gui::geometry::WindowBounds navigationResizeTarget_{};
     rillshot::gui::geometry::WindowBounds navigationResizeLastApplied_{};

@@ -27,7 +27,9 @@ rillshot::core::Status awaitManualAdvance(
 } // namespace detail
 
 rillshot::core::Status ManualDriver::advance(const ScrollRequest&) {
-    return detail::awaitManualAdvance(std::wcin, std::wcout);
+    // Keep stdout available for the CLI's single machine-readable result.
+    // Interactive prompts are diagnostics and belong on stderr.
+    return detail::awaitManualAdvance(std::wcin, std::wcerr);
 }
 
 } // namespace rillshot::input

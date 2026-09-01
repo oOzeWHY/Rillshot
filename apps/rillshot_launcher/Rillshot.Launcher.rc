@@ -6,8 +6,8 @@
 IDI_RILLSHOT_APP_ICON ICON "..\\rillshot_winui\\Assets\\Rillshot.ico"
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 1,1,9,0
-PRODUCTVERSION 1,1,9,0
+FILEVERSION 1,2,0,0
+PRODUCTVERSION 1,2,0,0
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -23,12 +23,12 @@ BEGIN
         BLOCK "040904B0"
         BEGIN
             VALUE "FileDescription", "Rillshot"
-            VALUE "FileVersion", "1.1.9.0"
+            VALUE "FileVersion", "1.2.0.0"
             VALUE "InternalName", "Rillshot"
             VALUE "LegalCopyright", "Copyright © 2026 Rillshot contributors"
             VALUE "OriginalFilename", "Rillshot.exe"
             VALUE "ProductName", "Rillshot"
-            VALUE "ProductVersion", "1.1.9.0"
+            VALUE "ProductVersion", "1.2.0.0"
         END
     END
     BLOCK "VarFileInfo"

@@ -150,24 +150,6 @@ struct WindowBounds {
         (value * (value * 6.0 - 15.0) + 10.0);
 }
 
-// Returns a nominal display-aligned pulse interval for short, backpressured
-// native-window animations. Invalid refresh rates use the 60 Hz fallback;
-// extremely high rates stay capped so window layout cannot become a busy loop.
-[[nodiscard]] constexpr std::int32_t navigationPulseIntervalMicros(
-    std::uint32_t refreshHz) noexcept {
-    constexpr std::int32_t minimumInterval = 4'000;
-    constexpr std::int32_t maximumInterval = 16'667;
-    if (refreshHz < 30 || refreshHz > 500) {
-        return maximumInterval;
-    }
-    const auto rounded = static_cast<std::int64_t>(1'000'000) +
-        static_cast<std::int64_t>(refreshHz) / 2;
-    return static_cast<std::int32_t>(std::clamp<std::int64_t>(
-        rounded / static_cast<std::int64_t>(refreshHz),
-        minimumInterval,
-        maximumInterval));
-}
-
 // Resize around the current window centre while keeping the complete target
 // inside the monitor work area. Horizontal and vertical margins are reduced
 // independently on very small work areas, so a valid one-pixel target always

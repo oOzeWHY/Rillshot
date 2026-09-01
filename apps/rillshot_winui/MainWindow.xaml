@@ -585,7 +585,7 @@
                         <Border Style="{StaticResource SettingsCardStyle}">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="关于与许可" Style="{StaticResource SectionTitleStyle}"/>
-                                <TextBlock Text="Rillshot 1.1.9 · Copyright © 2026 Rillshot contributors" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Rillshot 1.2.0 · Copyright © 2026 Rillshot contributors" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
                                 <TextBlock Text="社区版本仅按 GNU General Public License 第 3 版提供。你可以依照该许可复制、修改和再分发本程序；本程序不提供任何担保。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
                                 <HyperlinkButton
                                     Content="查看 GNU GPL 许可全文"

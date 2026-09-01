@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.23)
-project(Rillshot VERSION 1.1.9 LANGUAGES CXX)
+project(Rillshot VERSION 1.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+if(MSVC)
+    # The Portable CLI is placed beside Rillshot.exe and cannot rely on the
+    # WinUI runtime directory for MSVC runtime DLL discovery.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 option(RILLSHOT_BUILD_TESTS "Build platform-neutral tests" ON)
 option(RILLSHOT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
@@ -70,6 +75,18 @@ target_compile_features(rillshot_core PUBLIC cxx_std_23)
 
 rillshot_enable_warnings(rillshot_core)
 
+add_library(rillshot_cli_options STATIC
+    src/cli/CliOptions.cpp
+)
+
+target_include_directories(rillshot_cli_options PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(rillshot_cli_options PUBLIC rillshot_core)
+target_compile_features(rillshot_cli_options PUBLIC cxx_std_23)
+rillshot_enable_warnings(rillshot_cli_options)
+
 add_library(rillshot_gui_model STATIC
     src/gui/CaptureSummary.cpp
     src/gui/CaptureWorkflow.cpp
@@ -129,13 +146,17 @@ if(RILLSHOT_BUILD_WINDOWS_APPS)
     target_compile_features(rillshot_windows PUBLIC cxx_std_23)
     rillshot_enable_warnings(rillshot_windows)
 
-    add_executable(rillshot
+    add_executable(rillshot_cli
         apps/rillshot_cli/main.cpp
         apps/rillshot_cli/rillshot_cli.manifest
     )
 
-    target_link_libraries(rillshot PRIVATE rillshot_windows)
-    rillshot_enable_warnings(rillshot)
+    target_link_libraries(rillshot_cli PRIVATE rillshot_windows rillshot_cli_options)
+    target_compile_definitions(rillshot_cli PRIVATE
+        RILLSHOT_VERSION="${PROJECT_VERSION}"
+    )
+    set_target_properties(rillshot_cli PROPERTIES OUTPUT_NAME "rillshot-cli")
+    rillshot_enable_warnings(rillshot_cli)
 
     add_executable(rillshot_gui WIN32
         apps/rillshot_gui/main.cpp
@@ -163,7 +184,7 @@ if(RILLSHOT_BUILD_WINDOWS_APPS)
     rillshot_enable_warnings(rillshot_gui)
 
     if(MSVC)
-        set_property(TARGET rillshot PROPERTY VS_GLOBAL_EnableDpiAwareness "PerMonitorHighDPIAware")
+        set_property(TARGET rillshot_cli PROPERTY VS_GLOBAL_EnableDpiAwareness "PerMonitorHighDPIAware")
         set_property(TARGET rillshot_gui PROPERTY VS_GLOBAL_EnableDpiAwareness "PerMonitorHighDPIAware")
     endif()
 endif()
@@ -209,4 +230,9 @@ if(RILLSHOT_BUILD_TESTS)
     target_link_libraries(input_boundary_test PRIVATE rillshot_core)
     rillshot_enable_warnings(input_boundary_test)
     add_test(NAME input_boundary_test COMMAND input_boundary_test)
+
+    add_executable(cli_options_test tests/cli_options_test.cpp)
+    target_link_libraries(cli_options_test PRIVATE rillshot_cli_options)
+    rillshot_enable_warnings(cli_options_test)
+    add_test(NAME cli_options_test COMMAND cli_options_test)
 endif()

@@ -7,9 +7,7 @@
 #include "gui/WindowGeometry.h"
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
-#include <utility>
 
 using namespace winrt;
 using namespace Microsoft::UI::Dispatching;
@@ -17,16 +15,12 @@ using namespace Microsoft::UI::Windowing;
 using namespace Microsoft::UI::Xaml;
 using namespace Microsoft::UI::Xaml::Media;
 using namespace Windows::Foundation::Numerics;
-using namespace Windows::System::Threading;
 
 namespace winrt::Rillshot::WinUI::implementation {
 namespace {
 
 using navigation_motion::navigationDistance;
 using navigation_motion::navigationDuration;
-using navigation_motion::navigationResizeFallbackInterval;
-using navigation_motion::navigationResizeMaximumInterval;
-using navigation_motion::navigationResizeMinimumInterval;
 
 void resetNavigationProperties(UIElement const& element) {
     element.Opacity(1.0);
@@ -42,45 +36,7 @@ bool sameBounds(
         first.width == second.width && first.height == second.height;
 }
 
-std::chrono::microseconds refreshIntervalForMonitor(HMONITOR monitor) noexcept {
-    if (!monitor) {
-        return navigationResizeFallbackInterval;
-    }
-
-    MONITORINFOEXW monitorInfo{};
-    monitorInfo.cbSize = static_cast<DWORD>(sizeof(monitorInfo));
-    if (GetMonitorInfoW(
-            monitor,
-            reinterpret_cast<MONITORINFO*>(&monitorInfo)) == FALSE) {
-        return navigationResizeFallbackInterval;
-    }
-
-    DEVMODEW displayMode{};
-    displayMode.dmSize = static_cast<WORD>(sizeof(displayMode));
-    if (EnumDisplaySettingsW(
-            monitorInfo.szDevice,
-            ENUM_CURRENT_SETTINGS,
-            &displayMode) == FALSE ||
-        displayMode.dmDisplayFrequency < 30 ||
-        displayMode.dmDisplayFrequency > 500) {
-        return navigationResizeFallbackInterval;
-    }
-
-    const auto interval = std::chrono::microseconds{
-        rillshot::gui::geometry::navigationPulseIntervalMicros(
-            static_cast<std::uint32_t>(displayMode.dmDisplayFrequency))};
-    return std::clamp(
-        interval,
-        navigationResizeMinimumInterval,
-        navigationResizeMaximumInterval);
-}
-
 } // namespace
-
-struct MainWindow::NavigationResizePulseState {
-    std::atomic_bool stopped{false};
-    std::atomic_bool dispatchPending{false};
-};
 
 bool MainWindow::navigationAnimationsEnabled() noexcept {
     try {
@@ -191,7 +147,6 @@ void MainWindow::prepareNavigationWindowResize(bool open) noexcept {
             return;
         }
 
-        navigationResizePulseInterval_ = refreshIntervalForMonitor(monitor);
         MONITORINFO monitorInfo{sizeof(MONITORINFO)};
         if (!monitor || GetMonitorInfoW(monitor, &monitorInfo) == FALSE) {
             return;
@@ -255,52 +210,18 @@ void MainWindow::startNavigationWindowResizeAnimation() noexcept {
 
     try {
         navigationResizeStartedAt_ = std::chrono::steady_clock::now();
-        const auto state = std::make_shared<NavigationResizePulseState>();
-        const auto dispatcher = DispatcherQueue();
-        const auto weak = get_weak();
-        navigationResizePulseState_ = state;
-        navigationResizeTimer_ = ThreadPoolTimer::CreatePeriodicTimer(
-            [state, dispatcher, weak](
-                [[maybe_unused]] ThreadPoolTimer const& timer) noexcept {
-                if (state->stopped.load(std::memory_order_acquire)) {
-                    return;
+        // Rendering runs on the UI thread immediately before a XAML frame.
+        // A finite subscription aligns native resize samples with presented
+        // frames and naturally drops samples when the UI thread is busy.
+        navigationResizeRenderingToken_ = CompositionTarget::Rendering(
+            [weak = get_weak()](
+                [[maybe_unused]] IInspectable const& sender,
+                [[maybe_unused]] IInspectable const& args) {
+                if (const auto self = weak.get()) {
+                    self->advanceNavigationWindowResize();
                 }
-
-                bool expected = false;
-                if (!state->dispatchPending.compare_exchange_strong(
-                        expected,
-                        true,
-                        std::memory_order_acq_rel)) {
-                    return;
-                }
-
-                bool queued = false;
-                try {
-                    queued = dispatcher.TryEnqueue(
-                        DispatcherQueuePriority::High,
-                        [state, weak] {
-                            try {
-                                if (!state->stopped.load(std::memory_order_acquire)) {
-                                    if (const auto self = weak.get()) {
-                                        self->advanceNavigationWindowResize();
-                                    }
-                                }
-                            } catch (...) {
-                            }
-                            state->dispatchPending.store(
-                                false,
-                                std::memory_order_release);
-                        });
-                } catch (...) {
-                }
-                if (!queued) {
-                    state->dispatchPending.store(
-                        false,
-                        std::memory_order_release);
-                }
-            },
-            std::chrono::duration_cast<Windows::Foundation::TimeSpan>(
-                navigationResizePulseInterval_));
+            });
+        navigationResizeRenderingSubscribed_ = true;
     } catch (...) {
         finishNavigationWindowResizeAnimation();
     }
@@ -349,19 +270,14 @@ void MainWindow::finishNavigationWindowResizeAnimation() noexcept {
 }
 
 void MainWindow::stopNavigationWindowResizeAnimation() noexcept {
-    const auto state = std::exchange(
-        navigationResizePulseState_,
-        std::shared_ptr<NavigationResizePulseState>{});
-    if (state) {
-        state->stopped.store(true, std::memory_order_release);
-    }
     try {
-        if (navigationResizeTimer_) {
-            navigationResizeTimer_.Cancel();
+        if (navigationResizeRenderingSubscribed_) {
+            CompositionTarget::Rendering(navigationResizeRenderingToken_);
         }
     } catch (...) {
     }
-    navigationResizeTimer_ = nullptr;
+    navigationResizeRenderingSubscribed_ = false;
+    navigationResizeRenderingToken_ = {};
     navigationWindowResizePrepared_ = false;
 }
 

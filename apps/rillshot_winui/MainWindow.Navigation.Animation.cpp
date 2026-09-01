@@ -15,8 +15,9 @@ namespace winrt::Rillshot::WinUI::implementation {
 namespace {
 
 using navigation_motion::incomingScale;
+using navigation_motion::incomingDuration;
 using navigation_motion::navigationDistance;
-using navigation_motion::navigationDuration;
+using navigation_motion::outgoingDuration;
 using navigation_motion::outgoingScale;
 
 void setNavigationCenterPoint(UIElement const& element) {
@@ -104,24 +105,24 @@ bool MainWindow::ensureNavigationAnimationTemplates() noexcept {
         outgoingOpacityAnimation_.InsertKeyFrame(0.0F, 1.0F);
         outgoingOpacityAnimation_.InsertKeyFrame(
             1.0F, 0.0F, navigationExitEasing_);
-        outgoingOpacityAnimation_.Duration(navigationDuration);
+        outgoingOpacityAnimation_.Duration(outgoingDuration);
 
         incomingOpacityAnimation_ = compositor.CreateScalarKeyFrameAnimation();
         incomingOpacityAnimation_.Target(L"Opacity");
         incomingOpacityAnimation_.InsertKeyFrame(0.0F, 0.0F);
         incomingOpacityAnimation_.InsertKeyFrame(
             1.0F, 1.0F, navigationEnterEasing_);
-        incomingOpacityAnimation_.Duration(navigationDuration);
+        incomingOpacityAnimation_.Duration(incomingDuration);
 
         outgoingTranslationAnimation_ =
             compositor.CreateVector3KeyFrameAnimation();
         outgoingTranslationAnimation_.Target(L"Translation");
-        outgoingTranslationAnimation_.Duration(navigationDuration);
+        outgoingTranslationAnimation_.Duration(outgoingDuration);
 
         incomingTranslationAnimation_ =
             compositor.CreateVector3KeyFrameAnimation();
         incomingTranslationAnimation_.Target(L"Translation");
-        incomingTranslationAnimation_.Duration(navigationDuration);
+        incomingTranslationAnimation_.Duration(incomingDuration);
 
         outgoingScaleAnimation_ = compositor.CreateVector3KeyFrameAnimation();
         outgoingScaleAnimation_.Target(L"Scale");
@@ -131,7 +132,7 @@ bool MainWindow::ensureNavigationAnimationTemplates() noexcept {
             1.0F,
             float3{outgoingScale, outgoingScale, 1.0F},
             navigationExitEasing_);
-        outgoingScaleAnimation_.Duration(navigationDuration);
+        outgoingScaleAnimation_.Duration(outgoingDuration);
 
         incomingScaleAnimation_ = compositor.CreateVector3KeyFrameAnimation();
         incomingScaleAnimation_.Target(L"Scale");
@@ -141,7 +142,7 @@ bool MainWindow::ensureNavigationAnimationTemplates() noexcept {
             1.0F,
             float3{1.0F, 1.0F, 1.0F},
             navigationEnterEasing_);
-        incomingScaleAnimation_.Duration(navigationDuration);
+        incomingScaleAnimation_.Duration(incomingDuration);
         navigationTemplatesReady_ = true;
         return true;
     } catch (...) {
