@@ -20,7 +20,7 @@ Rillshot 用于补充 Windows 自带截图工具在滚动长截图方面的功�
 Rillshot 使用 C++/WinRT 和 WinUI 3 构建，界面遵循 Windows 11 的原生设计。除图形界面外，项目还提供独立 CLI，可由终端、脚本和 Agent 工具调用。
 
 <p align="center">
-  <img src="docs/images/rillshot-main.png" width="720" alt="Rillshot 主界面，包含截图区域、滚动点、设置和开始截图入口" />
+  <img src="./.github/assets/rillshot-main.png" width="720" alt="Rillshot 主界面，包含截图区域、滚动点、设置和开始截图入口" />
 </p>
 
 ## 适用场景
