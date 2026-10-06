@@ -38,13 +38,17 @@ class SelectionOverlay final {
 public:
     [[nodiscard]] static SelectionResult<rillshot::core::PointI> pickPoint(
         HWND owner,
-        std::optional<rillshot::core::RectI> allowedRegion = std::nullopt);
+        std::optional<rillshot::core::RectI> allowedRegion = std::nullopt,
+        bool dimOutside = true);
     [[nodiscard]] static SelectionResult<rillshot::core::PointI> pickHorizontalBoundary(
         HWND owner,
-        rillshot::core::RectI allowedRegion);
-    [[nodiscard]] static SelectionResult<rillshot::core::RectI> pickRegion(HWND owner);
+        rillshot::core::RectI allowedRegion,
+        bool dimOutside = true);
+    [[nodiscard]] static SelectionResult<rillshot::core::RectI> pickRegion(
+        HWND owner, bool dimOutside = true);
 
 private:
+    friend struct SelectionOverlayTestAccess;
     enum class Mode {
         Point,
         HorizontalBoundary,
@@ -53,8 +57,9 @@ private:
 
     explicit SelectionOverlay(
         Mode mode,
-        std::optional<rillshot::core::RectI> allowedRegion = std::nullopt)
-        : mode_(mode), allowedRegion_(allowedRegion) {}
+        std::optional<rillshot::core::RectI> allowedRegion = std::nullopt,
+        bool dimOutside = true)
+        : mode_(mode), allowedRegion_(allowedRegion), dimOutside_(dimOutside) {}
     ~SelectionOverlay();
 
     [[nodiscard]] bool run(HWND owner);
@@ -81,6 +86,7 @@ private:
 
     Mode mode_;
     std::optional<rillshot::core::RectI> allowedRegion_;
+    bool dimOutside_ = true;
     HWND window_ = nullptr;
     HWND owner_ = nullptr;
     RECT virtualScreen_{};

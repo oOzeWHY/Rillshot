@@ -275,7 +275,7 @@ void MainWindow::runQueuedSelection(
 
         if (kind == SelectionKind::Region) {
             const auto selection =
-                rillshot::gui::SelectionOverlay::pickRegion(window);
+                rillshot::gui::SelectionOverlay::pickRegion(window, preferences_.dimOutsideCapture);
             if (!selection.value) {
                 const auto presentation = selectionExitPresentation(
                     selection.reason, selection.systemError, L"截图区域");
@@ -312,7 +312,7 @@ void MainWindow::runQueuedSelection(
         } else if (kind == SelectionKind::ScrollPoint) {
             const auto selection =
                 rillshot::gui::SelectionOverlay::pickPoint(
-                    window, allowedRegion);
+                    window, allowedRegion, preferences_.dimOutsideCapture);
             if (!selection.value) {
                 const auto presentation = selectionExitPresentation(
                     selection.reason, selection.systemError, L"滚动位置");
@@ -334,7 +334,7 @@ void MainWindow::runQueuedSelection(
         } else {
             const auto selection =
                 rillshot::gui::SelectionOverlay::pickHorizontalBoundary(
-                    window, *allowedRegion);
+                    window, *allowedRegion, preferences_.dimOutsideCapture);
             if (!selection.value) {
                 const auto presentation = selectionExitPresentation(
                     selection.reason, selection.systemError, L"固定页头");

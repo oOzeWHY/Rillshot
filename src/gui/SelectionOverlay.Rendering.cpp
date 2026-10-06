@@ -208,7 +208,7 @@ void SelectionOverlay::paint() {
     const HDC targetDc = buffered ? bufferDc : dc;
     const int targetBaseX = buffered ? 0 : paint.rcPaint.left;
     const int targetBaseY = buffered ? 0 : paint.rcPaint.top;
-    const HDC backgroundDc = dimmedSnapshotDc_ ? dimmedSnapshotDc_ : snapshotDc_;
+    const HDC backgroundDc = dimOutside_ && dimmedSnapshotDc_ ? dimmedSnapshotDc_ : snapshotDc_;
     if (backgroundDc) {
         BitBlt(
             targetDc,
@@ -251,7 +251,7 @@ void SelectionOverlay::paint() {
             activeRectangle.bottom > activeRectangle.top;
     }
 
-    if (hasActiveRectangle && snapshotDc_) {
+    if (dimOutside_ && hasActiveRectangle && snapshotDc_) {
         RECT visible{};
         if (IntersectRect(&visible, &activeRectangle, &paint.rcPaint)) {
             int visibleWidth = 0;
@@ -391,7 +391,7 @@ void SelectionOverlay::invalidateSelectionFillDelta(
     const POINT& start,
     const POINT& oldCurrent,
     const POINT& newCurrent) {
-    if (!window_) {
+    if (!window_ || !dimOutside_) {
         return;
     }
 
@@ -453,7 +453,7 @@ bool SelectionOverlay::pointAllowed(const POINT& point) const noexcept {
 bool SelectionOverlay::cursorBackdropIsLight() const noexcept {
     const int width = virtualScreenWidth_;
     const int height = virtualScreenHeight_;
-    if (!snapshotPixels_ || !dimmedSnapshotPixels_ || snapshotStrideBytes_ == 0 ||
+    if (!snapshotPixels_ || snapshotStrideBytes_ == 0 ||
         width <= 0 || height <= 0) {
         return false;
     }
@@ -470,9 +470,10 @@ bool SelectionOverlay::cursorBackdropIsLight() const noexcept {
             clientPoint.x >= active.left && clientPoint.x < active.right &&
             clientPoint.y >= active.top && clientPoint.y < active.bottom;
     }
-    const std::uint8_t* visiblePixels = cursorOverOriginalSnapshot
-        ? snapshotPixels_
-        : dimmedSnapshotPixels_;
+    const std::uint8_t* visiblePixels = dimOutside_ && dimmedSnapshotPixels_ &&
+            !cursorOverOriginalSnapshot
+        ? dimmedSnapshotPixels_
+        : snapshotPixels_;
     const std::size_t byteCount =
         snapshotStrideBytes_ * static_cast<std::size_t>(height);
     return selection::chooseCursorOuterTone(

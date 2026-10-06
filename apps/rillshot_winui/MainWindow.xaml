@@ -461,10 +461,10 @@
                                         <ColumnDefinition Width="220"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Spacing="3" VerticalAlignment="Center">
-                                        <TextBlock Text="截图时调暗区域外" Style="{StaticResource SettingTitleStyle}"/>
-                                        <TextBlock Text="突出截图区域，不影响截图亮度或鼠标操作。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="降低截图区域外的亮度" Style="{StaticResource SettingTitleStyle}"/>
+                                        <TextBlock Text="关闭后，框选和截图时保持屏幕原亮度。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="DimOutsideCaptureSwitch" Grid.Column="1" IsOn="False" OnContent="已启用" OffContent="已关闭" Toggled="DimOutsideCapture_Toggled" AutomationProperties.Name="截图时调暗截图区域外的内容"/>
+                                    <ToggleSwitch x:Name="DimOutsideCaptureSwitch" Grid.Column="1" IsOn="True" OnContent="已启用" OffContent="已关闭" Toggled="DimOutsideCapture_Toggled" AutomationProperties.Name="降低截图区域外的亮度"/>
                                 </Grid>
                                 <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
                                 <Grid ColumnSpacing="20">

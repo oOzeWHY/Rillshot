@@ -31,8 +31,9 @@ const wchar_t* selectionExitReasonCode(SelectionExitReason reason) noexcept {
 
 SelectionResult<rillshot::core::PointI> SelectionOverlay::pickPoint(
     HWND owner,
-    std::optional<rillshot::core::RectI> allowedRegion) {
-    SelectionOverlay overlay(Mode::Point, allowedRegion);
+    std::optional<rillshot::core::RectI> allowedRegion,
+    bool dimOutside) {
+    SelectionOverlay overlay(Mode::Point, allowedRegion, dimOutside);
     [[maybe_unused]] const bool accepted = overlay.run(owner);
     rillshot::platform::writeStartupLog(
         L"Selection point finished: " +
@@ -43,14 +44,15 @@ SelectionResult<rillshot::core::PointI> SelectionOverlay::pickPoint(
 
 SelectionResult<rillshot::core::PointI> SelectionOverlay::pickHorizontalBoundary(
     HWND owner,
-    rillshot::core::RectI allowedRegion) {
+    rillshot::core::RectI allowedRegion,
+    bool dimOutside) {
     if (!allowedRegion.isValid()) {
         return {
             std::nullopt,
             SelectionExitReason::InitializationFailed,
             ERROR_INVALID_PARAMETER};
     }
-    SelectionOverlay overlay(Mode::HorizontalBoundary, allowedRegion);
+    SelectionOverlay overlay(Mode::HorizontalBoundary, allowedRegion, dimOutside);
     [[maybe_unused]] const bool accepted = overlay.run(owner);
     rillshot::platform::writeStartupLog(
         L"Selection boundary finished: " +
@@ -59,8 +61,8 @@ SelectionResult<rillshot::core::PointI> SelectionOverlay::pickHorizontalBoundary
     return {overlay.point_, overlay.exitReason_, overlay.systemError_};
 }
 
-SelectionResult<rillshot::core::RectI> SelectionOverlay::pickRegion(HWND owner) {
-    SelectionOverlay overlay(Mode::Region);
+SelectionResult<rillshot::core::RectI> SelectionOverlay::pickRegion(HWND owner, bool dimOutside) {
+    SelectionOverlay overlay(Mode::Region, std::nullopt, dimOutside);
     [[maybe_unused]] const bool accepted = overlay.run(owner);
     rillshot::platform::writeStartupLog(
         L"Selection region finished: " +

@@ -36,26 +36,29 @@ bool SelectionOverlay::captureDesktopSnapshot() {
     void* originalPixels = nullptr;
     void* dimmedPixels = nullptr;
     snapshotDc_ = CreateCompatibleDC(screenDc);
-    dimmedSnapshotDc_ = CreateCompatibleDC(screenDc);
     snapshotBitmap_ = CreateDIBSection(
         screenDc, &info, DIB_RGB_COLORS, &originalPixels, nullptr, 0);
-    dimmedSnapshotBitmap_ = CreateDIBSection(
-        screenDc, &info, DIB_RGB_COLORS, &dimmedPixels, nullptr, 0);
-    if (!snapshotDc_ || !dimmedSnapshotDc_ ||
-        !snapshotBitmap_ || !dimmedSnapshotBitmap_ ||
-        !originalPixels || !dimmedPixels) {
+    if (dimOutside_) {
+        dimmedSnapshotDc_ = CreateCompatibleDC(screenDc);
+        dimmedSnapshotBitmap_ = CreateDIBSection(
+            screenDc, &info, DIB_RGB_COLORS, &dimmedPixels, nullptr, 0);
+    }
+    if (!snapshotDc_ || !snapshotBitmap_ || !originalPixels ||
+        (dimOutside_ && (!dimmedSnapshotDc_ || !dimmedSnapshotBitmap_ || !dimmedPixels))) {
         ReleaseDC(nullptr, screenDc);
         releaseDesktopSnapshot();
         return false;
     }
 
     snapshotPreviousBitmap_ = SelectObject(snapshotDc_, snapshotBitmap_);
-    dimmedSnapshotPreviousBitmap_ =
-        SelectObject(dimmedSnapshotDc_, dimmedSnapshotBitmap_);
+    if (dimOutside_) {
+        dimmedSnapshotPreviousBitmap_ =
+            SelectObject(dimmedSnapshotDc_, dimmedSnapshotBitmap_);
+    }
     if (!snapshotPreviousBitmap_ ||
         snapshotPreviousBitmap_ == HGDI_ERROR ||
-        !dimmedSnapshotPreviousBitmap_ ||
-        dimmedSnapshotPreviousBitmap_ == HGDI_ERROR) {
+        (dimOutside_ && (!dimmedSnapshotPreviousBitmap_ ||
+                        dimmedSnapshotPreviousBitmap_ == HGDI_ERROR))) {
         if (snapshotPreviousBitmap_ == HGDI_ERROR) {
             snapshotPreviousBitmap_ = nullptr;
         }
@@ -81,12 +84,14 @@ bool SelectionOverlay::captureDesktopSnapshot() {
         virtualScreen_.top,
         SRCCOPY | CAPTUREBLT);
     ReleaseDC(nullptr, screenDc);
-    if (!captured) {
+    if (!captured || !GdiFlush()) {
         releaseDesktopSnapshot();
         return false;
     }
 
-    GdiFlush();
+    // A disabled preference needs only the original desktop. Avoid allocating
+    // or processing a second full-screen bitmap just to perform selection.
+    if (!dimOutside_) return true;
     const std::size_t pixelCount =
         static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
     std::memcpy(dimmedPixels, originalPixels, pixelCount * 4U);
@@ -101,7 +106,6 @@ bool SelectionOverlay::captureDesktopSnapshot() {
             static_cast<unsigned int>(pixel[2]) * 62U / 100U);
         pixel[3] = 255U;
     }
-    GdiFlush();
     return true;
 }
 

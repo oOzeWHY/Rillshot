@@ -211,6 +211,19 @@ endif()
 if(RILLSHOT_BUILD_TESTS)
     enable_testing()
     if(RILLSHOT_BUILD_WINDOWS_APPS)
+        add_executable(selection_brightness_test
+            tests/selection_brightness_test.cpp
+            src/gui/SelectionOverlay.cpp
+            src/gui/SelectionOverlay.Rendering.cpp
+            src/gui/SelectionOverlay.Snapshot.cpp
+            src/gui/WindowsShellUtils.cpp
+            src/gui/Win32ControlUtils.cpp
+            src/platform/UserPreferences.cpp
+        )
+        target_link_libraries(selection_brightness_test PRIVATE rillshot_windows dwmapi uuid)
+        rillshot_enable_warnings(selection_brightness_test)
+        add_test(NAME selection_brightness_test COMMAND selection_brightness_test)
+
         add_executable(capture_output_test tests/capture_output_test.cpp)
         target_link_libraries(capture_output_test PRIVATE rillshot_windows)
         rillshot_enable_warnings(capture_output_test)
