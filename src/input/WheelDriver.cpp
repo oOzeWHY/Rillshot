@@ -62,7 +62,11 @@ rillshot::core::Status WheelDriver::advance(const ScrollRequest& request) {
                 "wheel-sendinput-failed",
                 "SendInput did not insert the wheel event; UIPI or focus may have blocked input");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(delayMs(rng)));
+        // Pace consecutive inputs only. CaptureSession owns the post-scroll
+        // minimum wait and stability checks after the last event.
+        if (i + 1 < request.notches) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs(rng)));
+        }
     }
 
     return rillshot::core::Status::success();

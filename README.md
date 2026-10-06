@@ -2,10 +2,10 @@
   <img src="apps/rillshot_winui/Assets/BrandLockup.svg" width="460" alt="Rillshot" />
 </p>
 
-<p align="center">原生、快速、简洁的 Windows 11 长截图工具</p>
+<p align="center">原生、离线、支持 GUI/CLI 与 Agent 集成的 Windows 11 长截图工具</p>
 
 <p align="center">
-  <a href="../../releases/latest">下载</a> ·
+  <a href="https://github.com/oOzeWHY/Rillshot/releases/latest">下载</a> ·
   <a href="#适用场景">适用场景</a> ·
   <a href="#使用方法">使用方法</a> ·
   <a href="#命令行接口">命令行接口</a> ·
@@ -18,6 +18,8 @@
 Rillshot 用于补充 Windows 自带截图工具在滚动长截图方面的功能空缺。它连续捕获并拼接屏幕中的指定区域，将需要滚动查看的内容保存为一张长图。
 
 Rillshot 使用 C++/WinRT 和 WinUI 3 构建，界面遵循 Windows 11 的原生设计。除图形界面外，项目还提供独立 CLI，可由终端、脚本和 Agent 工具调用。
+
+截图、稳定检测和拼接均在本机完成，程序不需要把页面内容上传到网络。
 
 <p align="center">
   <img src="./.github/assets/rillshot-main.png" width="720" alt="Rillshot 主界面，包含截图区域、滚动点、设置和开始截图入口" />
@@ -32,6 +34,7 @@ Rillshot 最初面向金山文档、飞书文档等云文档场景。这些页�
 - 向上或向下拼接长截图
 - 原生 WinUI 3 界面，支持浅色、深色和系统主题
 - 自动等待画面稳定并拼接相邻截图
+- 选区级 DXGI 复制、分块长图组装、有界接缝候选精排和亮度缓存
 - 鼠标滚轮、翻页键、空格键和方向键滚动
 - PNG 和 BMP 输出
 - 固定页头和页脚排除
@@ -49,7 +52,7 @@ Rillshot 最初面向金山文档、飞书文档等云文档场景。这些页�
 
 ## 下载和运行
 
-1. 从 [Releases](../../releases/latest) 下载 x64 Portable 压缩包。
+1. 从 [Releases](https://github.com/oOzeWHY/Rillshot/releases/latest) 下载 x64 Portable 压缩包。
 2. 将压缩包完整解压到具有写入权限的目录。
 3. 运行根目录中的 `Rillshot.exe`。
 
@@ -107,7 +110,7 @@ Portable 包根目录中的 `rillshot-cli.exe` 可供终端、脚本和 Agent �
 
 | 文件 | 说明 |
 |---|---|
-| `*.partial.png` | 停止前已经完成的部分 |
+| `*.partial.png` | 崩溃恢复检查点；首条接缝后创建，随后按接缝数或时间刷新 |
 | `*.comparison.png` | 最后一个未通过接缝检查的画面 |
 | `*.jsonl` | 捕获参数、过程和停止原因 |
 
@@ -153,6 +156,7 @@ ctest --test-dir out/build/core-msvc -C Release --output-on-failure
 | `apps/rillshot_winui` | C++/WinRT WinUI 3 前端 |
 | `apps/rillshot_launcher` | Portable 图形界面启动器 |
 | `tests` | 核心算法与行为测试 |
+| `benchmarks` | 非门禁的算法微基准 |
 | `tools` | 构建、打包和启动测试脚本 |
 
 ## 参与贡献
@@ -164,3 +168,9 @@ ctest --test-dir out/build/core-msvc -C Release --output-on-failure
 ## 许可证
 
 除第三方文件或另有标注外，Rillshot 社区版采用 [`GPL-3.0-only`](LICENSE) 许可证。分发二进制时还应遵守 [对应源码说明](SOURCE_OFFER.md) 和 [第三方通知](THIRD_PARTY_NOTICES.txt)。商业授权信息见 [商业许可说明](COMMERCIAL-LICENSE.md)，名称和图形标志的使用规则见 [商标说明](TRADEMARKS.md)。
+
+## 开发候选的性能改进
+
+1.2.1 的本轮改动与实测口径见 [算法与滚动效率复审](PERFORMANCE-REVIEW-ZH.md)。相同画面的周期保护使用精确行 KMP；滚轮和键盘不再重复等待最后一个事件，稳定采样扣除已用于统计、比较和日志的时间。默认 120 ms 最小等待、50 ms 采样间隔和两次连续稳定比较保持不变。
+
+缩短冗余等待不代表可以任意减小稳定参数；平滑滚动或迟滞页面仍可能需要更长等待。当前开发候选已通过核心及 Windows 模拟后端回归，WinUI 和真实页面端到端验收仍待完成。

@@ -7,9 +7,11 @@
 #include "session/SessionDiagnostics.h"
 #include "session/SessionInputSupport.h"
 #include "session/SessionOutputSupport.h"
+#include "stitch/StitchedImageBuilder.h"
 #include "stitch/StitchEngine.h"
 
 #include <algorithm>
+#include <chrono>
 #include <exception>
 #include <filesystem>
 #include <iomanip>
@@ -27,6 +29,7 @@ using rillshot::input::ScrollRequest;
 using rillshot::output::ImageFormat;
 using rillshot::output::WicImageWriter;
 using rillshot::stitch::MatchOptions;
+using rillshot::stitch::StitchedImageBuilder;
 using rillshot::stitch::StitchEngine;
 using detail::backendName;
 using detail::advanceScrollSafely;
@@ -45,6 +48,12 @@ using detail::writeImageNoThrow;
 using detail::waitForStableFrame;
 using detail::stopReasonForScrollFailure;
 
+long long elapsedMilliseconds(
+    std::chrono::steady_clock::time_point started) noexcept {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - started).count();
+}
+
 } // namespace
 
 rillshot::core::Status validateCaptureOutputCollisionPolicy(
@@ -54,6 +63,7 @@ rillshot::core::Status validateCaptureOutputCollisionPolicy(
 
 CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
     CaptureSessionResult result;
+    const auto sessionStarted = std::chrono::steady_clock::now();
 
     const auto validation = validateCaptureSessionOptions(options);
     if (!validation.ok) {
@@ -89,12 +99,21 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
                << ",\"driver\":" << q(driverName(options.driver))
                << ",\"direction\":" << q(rillshot::core::toString(options.direction))
                << ",\"maxFrames\":" << options.maxFrames
+               << ",\"minWaitMs\":" << options.minWaitMs
+               << ",\"maxWaitMs\":" << options.maxWaitMs
+               << ",\"sampleIntervalMs\":" << options.sampleIntervalMs
+               << ",\"stableSamplesRequired\":" << options.stableSamplesRequired
+               << ",\"diffThreshold\":" << options.diffThreshold
                << ",\"ignoreTopPx\":" << options.ignoreTopPx
                << ",\"ignoreBottomPx\":" << options.ignoreBottomPx
                << ",\"hardStitchConfidenceFloor\":" << std::fixed << std::setprecision(6) << options.hardStitchConfidenceFloor
                << ",\"maxAssembledImageBytes\":" << options.maxAssembledImageBytes
+               << ",\"partialCheckpointEverySeams\":"
+               << options.partialCheckpointEverySeams
+               << ",\"partialCheckpointMaxIntervalMs\":"
+               << options.partialCheckpointMaxIntervalMs
                << ",\"stopOnLowConfidenceSeams\":" << (options.stopOnLowConfidenceSeams ? "true" : "false");
-        logger.event("session_start", fields.str());
+        logger.event("session_start", fields.str(), true);
     }
 
     auto backends = makeBackends(options.backend);
@@ -112,7 +131,13 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
             ? StopReason::UserStopped
             : StopReason::CaptureFailed;
         result.ok = rillshot::core::isGracefulStop(result.stopReason);
-        logger.event("stop", "\"reason\":" + q(rillshot::core::toString(result.stopReason)) + ",\"message\":" + q(result.message));
+        logger.event(
+            "stop",
+            "\"reason\":" + q(rillshot::core::toString(result.stopReason)) +
+                ",\"message\":" + q(result.message) +
+                ",\"sessionElapsedMs\":" +
+                std::to_string(elapsedMilliseconds(sessionStarted)),
+            true);
         result.diagnosticsSaved = logger.ok();
         return result;
     }
@@ -120,12 +145,14 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
     const bool initialFrameUnstable = first.unstable;
     Image previousFrame = std::move(first.image);
     WicImageWriter writer;
-    Image assembled;
+    StitchedImageBuilder assembled;
     try {
-        assembled = initialResultFrom(
-            previousFrame,
-            options.ignoreTopPx,
-            options.ignoreBottomPx,
+        assembled = StitchedImageBuilder(
+            initialResultFrom(
+                previousFrame,
+                options.ignoreTopPx,
+                options.ignoreBottomPx,
+                options.direction),
             options.direction);
     } catch (const std::exception& ex) {
         result.stopReason = StopReason::CaptureFailed;
@@ -147,7 +174,10 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
                 ",\"message\":" + q(result.message) +
                 ",\"ok\":false" +
                 ",\"outputSaved\":" + (result.outputSaved ? "true" : "false") +
-                ",\"framesCaptured\":1,\"seams\":0");
+                ",\"framesCaptured\":1,\"seams\":0" +
+                ",\"sessionElapsedMs\":" +
+                std::to_string(elapsedMilliseconds(sessionStarted)),
+            true);
         result.framesCaptured = 1;
         result.diagnosticsSaved = logger.ok();
         return result;
@@ -173,7 +203,10 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
             result.comparisonFrameSaved = true;
             result.comparisonFramePath = path;
             try {
-                logger.event("comparison_frame_saved", "\"path\":" + q(rillshot::platform::wideToUtf8(path)));
+                logger.event(
+                    "comparison_frame_saved",
+                    "\"path\":" + q(rillshot::platform::wideToUtf8(path)),
+                    true);
             } catch (const std::exception& ex) {
                 logger.event("path_encoding_failed", "\"message\":" + q(ex.what()));
             }
@@ -186,6 +219,8 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         ? options.ignoreBottomPx
         : options.ignoreTopPx;
     bool partialWrittenBySession = false;
+    int seamsAtLastCheckpoint = 0;
+    auto lastCheckpointAt = std::chrono::steady_clock::now();
     for (int frameIndex = 1;
          !initialFrameUnstable && frameIndex < options.maxFrames;
          ++frameIndex) {
@@ -203,6 +238,7 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         request.keyboardKey = options.keyboardKey;
         request.down = options.direction == rillshot::core::ScrollDirection::Down;
 
+        const auto scrollStarted = std::chrono::steady_clock::now();
         status = advanceScrollSafely(*driver, request);
         if (!status.ok) {
             result.stopReason = stopReasonForScrollFailure(status);
@@ -213,6 +249,7 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         {
             std::ostringstream fields;
             fields << "\"driver\":" << q(driverName(options.driver));
+            fields << ",\"scrollElapsedMs\":" << elapsedMilliseconds(scrollStarted);
             fields << ",\"direction\":" << q(rillshot::core::toString(options.direction));
             if (options.driver == DriverChoice::Keyboard) {
                 fields << ",\"key\":" << q(keyboardKeyName(options.keyboardKey))
@@ -255,8 +292,11 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         matchOptions.yStep = 3;
 
         rillshot::stitch::MatchResult match;
+        long long matchElapsedMs = 0;
         try {
+            const auto matchStarted = std::chrono::steady_clock::now();
             match = stitcher.findVerticalOverlap(previousFrame, current.image, matchOptions);
+            matchElapsedMs = elapsedMilliseconds(matchStarted);
         } catch (const std::exception& ex) {
             result.stopReason = StopReason::StitchUnreliable;
             result.message = std::string("stitch matcher raised an exception: ") + ex.what();
@@ -286,7 +326,11 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
                    << ",\"primaryCandidatesRefined\":" << match.primaryCandidatesRefined
                    << ",\"diverseCandidatesRefined\":" << match.diverseCandidatesRefined
                    << ",\"refinedCandidatesEvaluated\":" << match.refinedCandidatesEvaluated
+                   << ",\"coarseLumaSamplesPrepared\":" << match.coarseLumaSamplesPrepared
+                   << ",\"refinedLumaSamplesPrepared\":" << match.refinedLumaSamplesPrepared
                    << ",\"refinedSamplesEvaluated\":" << match.refinedSamplesEvaluated
+                   << ",\"exactContentMatch\":" << (match.exactContentMatch ? "true" : "false")
+                   << ",\"matchElapsedMs\":" << matchElapsedMs
                    << ",\"method\":" << q(match.method)
                    << ",\"unstable\":" << (current.unstable ? "true" : "false")
                    << ",\"message\":" << q(match.message);
@@ -332,18 +376,12 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
             break;
         }
 
+        const auto assembleStarted = std::chrono::steady_clock::now();
         try {
-            if (options.direction == rillshot::core::ScrollDirection::Down) {
-                assembled.appendRowsFrom(
-                    current.image,
-                    match.newContentStartY,
-                    match.newContentEndYExclusive);
-            } else {
-                assembled.prependRowsFrom(
-                    current.image,
-                    match.newContentStartY,
-                    match.newContentEndYExclusive);
-            }
+            assembled.addRowsFrom(
+                current.image,
+                match.newContentStartY,
+                match.newContentEndYExclusive);
         } catch (const std::exception& ex) {
             result.stopReason = StopReason::CaptureFailed;
             result.message = std::string("could not assemble stitched rows: ") + ex.what();
@@ -353,18 +391,83 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         previousFrame = std::move(current.image);
         ++result.seams;
 
-        const auto partialPath = partialPathFor(options.outPath);
-        const auto partialStatus = writeImageNoThrow(
-            writer,
-            assembled,
-            partialPath,
-            ImageFormat::Png,
-            mayOverwritePartialCheckpoint(
-                options.allowOverwrite, partialWrittenBySession));
-        if (!partialStatus.ok) {
-            logger.event("partial_write_failed", "\"message\":" + q(partialStatus.message));
-        } else {
-            partialWrittenBySession = true;
+        logger.event(
+            "assemble_rows_done",
+            "\"frame\":" + std::to_string(frameIndex) +
+                ",\"elapsedMs\":" +
+                std::to_string(elapsedMilliseconds(assembleStarted)) +
+                ",\"assembledHeight\":" +
+                std::to_string(assembled.height()) +
+                ",\"chunks\":" +
+                std::to_string(assembled.chunkCount()));
+
+        const auto checkpointElapsedMs =
+            elapsedMilliseconds(lastCheckpointAt);
+        if (shouldWritePartialCheckpoint(
+                partialWrittenBySession,
+                result.seams,
+                seamsAtLastCheckpoint,
+                checkpointElapsedMs,
+                options.partialCheckpointEverySeams,
+                options.partialCheckpointMaxIntervalMs)) {
+            const auto checkpointStarted = std::chrono::steady_clock::now();
+            Status partialStatus;
+            long long materializeElapsedMs = 0;
+            long long encodeElapsedMs = 0;
+            try {
+                const auto materializeStarted =
+                    std::chrono::steady_clock::now();
+                const auto checkpointImage = assembled.materialize();
+                materializeElapsedMs =
+                    elapsedMilliseconds(materializeStarted);
+                const auto encodeStarted =
+                    std::chrono::steady_clock::now();
+                partialStatus = writeImageNoThrow(
+                    writer,
+                    checkpointImage,
+                    partialPathFor(options.outPath),
+                    ImageFormat::Png,
+                    mayOverwritePartialCheckpoint(
+                        options.allowOverwrite, partialWrittenBySession));
+                encodeElapsedMs = elapsedMilliseconds(encodeStarted);
+            } catch (const std::exception& ex) {
+                partialStatus = Status::failure(
+                    "partial-materialize-failed",
+                    std::string("could not materialize recovery checkpoint: ") +
+                        ex.what());
+            } catch (...) {
+                partialStatus = Status::failure(
+                    "partial-materialize-failed",
+                    "could not materialize recovery checkpoint: unknown exception");
+            }
+            if (!partialStatus.ok) {
+                logger.event(
+                    "partial_write_failed",
+                    "\"materializeElapsedMs\":" +
+                        std::to_string(materializeElapsedMs) +
+                        ",\"encodeElapsedMs\":" +
+                        std::to_string(encodeElapsedMs) +
+                        ",\"elapsedMs\":" +
+                        std::to_string(elapsedMilliseconds(checkpointStarted)) +
+                        ",\"message\":" + q(partialStatus.message),
+                    true);
+            } else {
+                partialWrittenBySession = true;
+                seamsAtLastCheckpoint = result.seams;
+                lastCheckpointAt = std::chrono::steady_clock::now();
+                logger.event(
+                    "partial_checkpoint_saved",
+                    "\"seams\":" + std::to_string(result.seams) +
+                        ",\"height\":" +
+                        std::to_string(assembled.height()) +
+                        ",\"materializeElapsedMs\":" +
+                        std::to_string(materializeElapsedMs) +
+                        ",\"encodeElapsedMs\":" +
+                        std::to_string(encodeElapsedMs) +
+                        ",\"elapsedMs\":" +
+                        std::to_string(elapsedMilliseconds(checkpointStarted)),
+                    true);
+            }
         }
     }
 
@@ -376,12 +479,12 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
     if (finalFixedRows > 0) {
         try {
             if (options.direction == rillshot::core::ScrollDirection::Down) {
-                assembled.appendRowsFrom(
+                assembled.addRowsFrom(
                     previousFrame,
                     previousFrame.height() - options.ignoreBottomPx,
                     previousFrame.height());
             } else {
-                assembled.prependRowsFrom(previousFrame, 0, options.ignoreTopPx);
+                assembled.addRowsFrom(previousFrame, 0, options.ignoreTopPx);
             }
         } catch (const std::exception& ex) {
             result.stopReason = StopReason::CaptureFailed;
@@ -390,23 +493,62 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         }
     }
 
-    const auto writeStatus = writeImageNoThrow(
-        writer,
-        assembled,
-        options.outPath,
-        formatFromPath(options.outPath),
-        options.allowOverwrite);
+    const auto finalWriteStarted = std::chrono::steady_clock::now();
+    Status writeStatus;
+    long long finalMaterializeElapsedMs = 0;
+    long long finalEncodeElapsedMs = 0;
+    try {
+        const auto materializeStarted = std::chrono::steady_clock::now();
+        const auto finalImage = assembled.materialize();
+        finalMaterializeElapsedMs =
+            elapsedMilliseconds(materializeStarted);
+        const auto encodeStarted = std::chrono::steady_clock::now();
+        writeStatus = writeImageNoThrow(
+            writer,
+            finalImage,
+            options.outPath,
+            formatFromPath(options.outPath),
+            options.allowOverwrite);
+        finalEncodeElapsedMs = elapsedMilliseconds(encodeStarted);
+    } catch (const std::exception& ex) {
+        writeStatus = Status::failure(
+            "final-materialize-failed",
+            std::string("could not materialize final image: ") + ex.what());
+    } catch (...) {
+        writeStatus = Status::failure(
+            "final-materialize-failed",
+            "could not materialize final image: unknown exception");
+    }
     if (!writeStatus.ok) {
         result.ok = false;
         result.outputSaved = false;
         result.stopReason = StopReason::CaptureFailed;
         result.message = writeStatus.message;
-        logger.event("write_failed", "\"message\":" + q(writeStatus.message));
+        logger.event(
+            "write_failed",
+            "\"materializeElapsedMs\":" +
+                std::to_string(finalMaterializeElapsedMs) +
+                ",\"encodeElapsedMs\":" +
+                std::to_string(finalEncodeElapsedMs) +
+                ",\"elapsedMs\":" +
+                std::to_string(elapsedMilliseconds(finalWriteStarted)) +
+                ",\"message\":" + q(writeStatus.message),
+            true);
     } else {
         result.outputSaved = true;
         result.ok = rillshot::core::isGracefulStop(result.stopReason);
         try {
-            logger.event("write_done", "\"path\":" + q(rillshot::platform::wideToUtf8(options.outPath)));
+            logger.event(
+                "write_done",
+                "\"path\":" +
+                    q(rillshot::platform::wideToUtf8(options.outPath)) +
+                    ",\"materializeElapsedMs\":" +
+                    std::to_string(finalMaterializeElapsedMs) +
+                    ",\"encodeElapsedMs\":" +
+                    std::to_string(finalEncodeElapsedMs) +
+                    ",\"elapsedMs\":" +
+                    std::to_string(elapsedMilliseconds(finalWriteStarted)),
+                true);
         } catch (const std::exception& ex) {
             logger.event("path_encoding_failed", "\"message\":" + q(ex.what()));
         }
@@ -434,7 +576,10 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
             ",\"outputSaved\":" + (result.outputSaved ? "true" : "false") +
             ",\"comparisonFrameSaved\":" + (result.comparisonFrameSaved ? "true" : "false") +
             ",\"framesCaptured\":" + std::to_string(result.framesCaptured) +
-            ",\"seams\":" + std::to_string(result.seams));
+            ",\"seams\":" + std::to_string(result.seams) +
+            ",\"sessionElapsedMs\":" +
+            std::to_string(elapsedMilliseconds(sessionStarted)),
+        true);
 
     result.diagnosticsSaved = logger.ok();
 

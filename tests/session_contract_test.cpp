@@ -150,6 +150,14 @@ static int testSessionOptionsValidation() {
     if (invalidBudget.ok || invalidBudget.code != "invalid-output-budget") {
         return fail("output budget must fit at least one complete capture frame");
     }
+
+    invalid = valid;
+    invalid.partialCheckpointEverySeams = 0;
+    const auto invalidCheckpoint = validateCaptureSessionOptions(invalid);
+    if (invalidCheckpoint.ok ||
+        invalidCheckpoint.code != "invalid-checkpoint-cadence") {
+        return fail("invalid checkpoint cadence must be rejected");
+    }
     return EXIT_SUCCESS;
 }
 
@@ -192,6 +200,25 @@ static int testPartialCheckpointCleanupPolicy() {
         shouldDeletePartialCheckpoint(true, true, StopReason::StitchUnreliable) ||
         shouldDeletePartialCheckpoint(true, true, StopReason::CaptureFailed)) {
         return fail("foreign, failed, or recovery checkpoints must be preserved");
+    }
+    return EXIT_SUCCESS;
+}
+
+static int testPartialCheckpointCadence() {
+    using rillshot::session::shouldWritePartialCheckpoint;
+    if (!shouldWritePartialCheckpoint(false, 1, 0, 0, 4, 5000)) {
+        return fail("the first seam must create a recovery checkpoint");
+    }
+    if (shouldWritePartialCheckpoint(true, 2, 1, 100, 4, 5000)) {
+        return fail("checkpoint cadence encoded every seam");
+    }
+    if (!shouldWritePartialCheckpoint(true, 5, 1, 100, 4, 5000) ||
+        !shouldWritePartialCheckpoint(true, 2, 1, 5000, 4, 5000)) {
+        return fail("checkpoint seam and time limits must both work");
+    }
+    if (shouldWritePartialCheckpoint(false, 0, 0, 0, 4, 5000) ||
+        shouldWritePartialCheckpoint(false, 1, 0, 0, 0, 5000)) {
+        return fail("invalid checkpoint state must fail closed");
     }
     return EXIT_SUCCESS;
 }
@@ -284,6 +311,7 @@ int main() {
     if (testImageByteBudgetArithmetic() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testPartialCheckpointOverwriteOwnership() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testPartialCheckpointCleanupPolicy() != EXIT_SUCCESS) return EXIT_FAILURE;
+    if (testPartialCheckpointCadence() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testGuiConfigMapsToSession() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testDefaultScrollPointFollowsDirection() != EXIT_SUCCESS) return EXIT_FAILURE;
     return EXIT_SUCCESS;

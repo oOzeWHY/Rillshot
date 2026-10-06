@@ -14,7 +14,7 @@
 #include <vector>
 
 #ifndef RILLSHOT_VERSION
-#define RILLSHOT_VERSION "1.2.0"
+#define RILLSHOT_VERSION "1.2.1"
 #endif
 
 namespace {

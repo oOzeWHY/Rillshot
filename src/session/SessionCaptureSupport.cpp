@@ -58,6 +58,7 @@ Status captureWithFallback(
         auto& backend = backends[backendIndex];
         CaptureFrame candidate;
         Status status;
+        const auto captureStarted = std::chrono::steady_clock::now();
         try {
             status = backend->capture(region, candidate);
         } catch (const std::exception& ex) {
@@ -67,6 +68,12 @@ Status captureWithFallback(
         } catch (...) {
             status = Status::failure("capture-backend-exception", "capture backend raised an unknown exception");
         }
+        // Anchor sampling after capture has completed, before summary/logging.
+        // Never subtract backend latency: it does not prove a stable interval.
+        candidate.capturedAt = std::chrono::steady_clock::now();
+        const auto backendElapsedMs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - captureStarted).count();
         if (status.ok) {
             if (candidate.image.empty() ||
                 candidate.image.width() != region.width ||
@@ -78,6 +85,8 @@ Status captureWithFallback(
                     "capture_backend_failed",
                     "\"backend\":" + q(backend->name()) +
                         ",\"code\":" + q(status.code) +
+                        ",\"backendElapsedMs\":" +
+                        std::to_string(backendElapsedMs) +
                         ",\"message\":" + q(status.message));
                 last = status;
                 continue;
@@ -86,10 +95,16 @@ Status captureWithFallback(
             if (candidate.backendName.empty()) {
                 candidate.backendName = backend->name();
             }
+            const auto summaryStarted = std::chrono::steady_clock::now();
             const auto summary = rillshot::core::summarizeImage(candidate.image);
+            const auto summaryElapsedMs =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - summaryStarted).count();
             std::ostringstream fields;
             fields << std::fixed << std::setprecision(6)
                    << "\"backend\":" << q(candidate.backendName)
+                   << ",\"backendElapsedMs\":" << backendElapsedMs
+                   << ",\"summaryElapsedMs\":" << summaryElapsedMs
                    << ",\"meanLuma\":" << summary.meanLuma
                    << ",\"lumaStdDev\":" << summary.lumaStdDev
                    << ",\"darkPixelRatio\":" << summary.darkPixelRatio
@@ -122,6 +137,8 @@ Status captureWithFallback(
             "capture_backend_failed",
             "\"backend\":" + q(backend->name()) +
                 ",\"code\":" + q(status.code) +
+                ",\"backendElapsedMs\":" +
+                std::to_string(backendElapsedMs) +
                 ",\"message\":" + q(status.message));
         last = status;
     }
@@ -195,6 +212,9 @@ Status waitForStableFrame(
     if (!status.ok) {
         return status;
     }
+    if (cancellationRequested(options)) {
+        return Status::failure("session-cancelled", "user stopped capture");
+    }
 
     const auto timeout = [&]() {
         previous.unstable = true;
@@ -205,7 +225,8 @@ Status waitForStableFrame(
             "stabilize_timeout",
             "\"phase\":" + q(phase) +
                 ",\"unstable\":true,\"elapsedMs\":" +
-                std::to_string(elapsedMs));
+                std::to_string(elapsedMs),
+            true);
         return Status::success("captured unstable frame after timeout");
     };
 
@@ -224,19 +245,30 @@ Status waitForStableFrame(
         if (now >= deadline) {
             return timeout();
         }
-        const auto remainingMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-            deadline - now).count();
-        const int waitMs = static_cast<int>(std::min<long long>(
-            std::max(1, options.sampleIntervalMs),
-            std::max(1LL, remainingMs)));
+        // Statistics, comparison and logging already consume part of the
+        // inter-sample interval. Wait only its remainder, anchored to actual
+        // capture completion (not a drifting global schedule or capture start).
+        const auto nextSampleAt = previous.capturedAt +
+            std::chrono::milliseconds(std::max(1, options.sampleIntervalMs));
+        const auto wakeAt = std::min(nextSampleAt, deadline);
+        const int waitMs = wakeAt <= now ? 0 : static_cast<int>(
+            std::chrono::ceil<std::chrono::milliseconds>(wakeAt - now).count());
         if (!interruptibleWait(options, waitMs)) {
             return Status::failure("session-cancelled", "user stopped capture");
+        }
+        // Do not start a potentially blocking capture when waiting consumed
+        // the deadline. The previous implementation made one extra call here.
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return timeout();
         }
 
         CaptureFrame current;
         status = captureWithFallback(backends, options.region, current, logger);
         if (!status.ok) {
             return status;
+        }
+        if (cancellationRequested(options)) {
+            return Status::failure("session-cancelled", "user stopped capture");
         }
         // A backend call may block until after the stabilization deadline.
         // Do not let that late frame satisfy the stability contract.
@@ -264,12 +296,24 @@ Status waitForStableFrame(
                << ",\"threshold\":" << options.diffThreshold;
         logger.event("stabilize_sample", fields.str());
 
+        // Comparison and diagnostic I/O may themselves exhaust the budget.
+        if (std::chrono::steady_clock::now() >= deadline) {
+            return timeout();
+        }
+
         if (diff <= options.diffThreshold) {
             ++stableCount;
             if (stableCount >= options.stableSamplesRequired) {
                 current.unstable = false;
                 stableFrame = std::move(current);
-                logger.event("stabilize_done", "\"phase\":" + q(phase) + ",\"unstable\":false");
+                const auto elapsedMs =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - started).count();
+                logger.event(
+                    "stabilize_done",
+                    "\"phase\":" + q(phase) +
+                        ",\"unstable\":false,\"elapsedMs\":" +
+                        std::to_string(elapsedMs));
                 return Status::success();
             }
         } else {

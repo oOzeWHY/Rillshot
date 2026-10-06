@@ -16,7 +16,12 @@ public:
     JsonlLogger(const JsonlLogger&) = delete;
     JsonlLogger& operator=(const JsonlLogger&) = delete;
 
-    void event(const std::string& name, const std::string& fields = {});
+    // Most events rely on the OS write cache. Durable boundaries explicitly
+    // flush so diagnostic I/O does not serialize every stabilization sample.
+    void event(
+        const std::string& name,
+        const std::string& fields = {},
+        bool durable = false);
     [[nodiscard]] bool ok() const noexcept;
     [[nodiscard]] const std::string& error() const noexcept;
 

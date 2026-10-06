@@ -40,7 +40,10 @@ JsonlLogger::~JsonlLogger() {
     }
 }
 
-void JsonlLogger::event(const std::string& name, const std::string& fields) {
+void JsonlLogger::event(
+    const std::string& name,
+    const std::string& fields,
+    bool durable) {
     if (file_ == INVALID_HANDLE_VALUE) {
         return;
     }
@@ -68,7 +71,7 @@ void JsonlLogger::event(const std::string& name, const std::string& fields) {
         error_ = "diagnostics file write was incomplete";
         return;
     }
-    if (!FlushFileBuffers(file_)) {
+    if (durable && !FlushFileBuffers(file_)) {
         const DWORD error = GetLastError();
         error_ = "could not flush diagnostics file: " +
             std::system_category().message(static_cast<int>(error));

@@ -124,6 +124,14 @@ rillshot::core::Status validateCaptureSessionOptions(const CaptureSessionOptions
     if (options.stableSamplesRequired < 1 || options.stableSamplesRequired > 100) {
         return Status::failure("invalid-stable-samples", "stableSamplesRequired must be between 1 and 100");
     }
+    if (options.partialCheckpointEverySeams < 1 ||
+        options.partialCheckpointEverySeams > 10000 ||
+        options.partialCheckpointMaxIntervalMs < 1 ||
+        options.partialCheckpointMaxIntervalMs > 600000) {
+        return Status::failure(
+            "invalid-checkpoint-cadence",
+            "partial checkpoint cadence is outside the supported range");
+    }
     if (!isUnitInterval(options.diffThreshold)) {
         return Status::failure("invalid-diff-threshold", "diffThreshold must be finite and between 0 and 1");
     }

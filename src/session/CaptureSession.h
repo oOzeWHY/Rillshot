@@ -14,6 +14,8 @@ inline constexpr std::uint64_t defaultMaxAssembledImageBytes =
     512ULL * 1024ULL * 1024ULL;
 inline constexpr std::uint64_t maximumEncodableImageBytes =
     (std::numeric_limits<std::uint32_t>::max)();
+inline constexpr int defaultPartialCheckpointEverySeams = 4;
+inline constexpr int defaultPartialCheckpointMaxIntervalMs = 5000;
 
 enum class BackendChoice {
     Auto,
@@ -50,6 +52,12 @@ struct CaptureSessionOptions {
     // final buffers could never be encoded by this release.
     std::uint64_t maxAssembledImageBytes = defaultMaxAssembledImageBytes;
     bool stopOnLowConfidenceSeams = true;
+    // An orderly stop writes the latest assembled image to outPath. Periodic
+    // partial files primarily bound loss after a process or machine failure,
+    // so they need not re-encode the growing image after every seam.
+    int partialCheckpointEverySeams = defaultPartialCheckpointEverySeams;
+    int partialCheckpointMaxIntervalMs =
+        defaultPartialCheckpointMaxIntervalMs;
     // Existing output and companion files are preserved unless the caller has
     // obtained an explicit overwrite confirmation from the user.
     bool allowOverwrite = false;
@@ -79,6 +87,24 @@ struct CaptureSessionResult {
     bool overwriteAuthorized,
     bool checkpointCreatedBySession) noexcept {
     return overwriteAuthorized || checkpointCreatedBySession;
+}
+
+[[nodiscard]] constexpr bool shouldWritePartialCheckpoint(
+    bool checkpointExists,
+    int completedSeams,
+    int seamsAtLastCheckpoint,
+    long long elapsedSinceCheckpointMs,
+    int checkpointEverySeams,
+    int checkpointMaxIntervalMs) noexcept {
+    if (completedSeams <= 0 || checkpointEverySeams <= 0 ||
+        checkpointMaxIntervalMs <= 0) {
+        return false;
+    }
+    if (!checkpointExists) {
+        return true;
+    }
+    return completedSeams - seamsAtLastCheckpoint >= checkpointEverySeams ||
+        elapsedSinceCheckpointMs >= checkpointMaxIntervalMs;
 }
 
 // A checkpoint is recovery data, not a second successful output. Remove only

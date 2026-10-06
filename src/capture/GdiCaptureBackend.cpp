@@ -65,7 +65,9 @@ rillshot::core::Status GdiCaptureBackend::capture(const rillshot::core::RectI& r
         region.y,
         SRCCOPY | CAPTUREBLT);
 
-    if (ok) {
+    // Direct DIB access must follow completion of this thread's GDI batch.
+    const BOOL flushed = ok ? GdiFlush() : FALSE;
+    if (ok && flushed) {
         const auto bytes = image.bytes();
         std::memcpy(bytes.data(), bits, bytes.size());
     }
@@ -77,6 +79,9 @@ rillshot::core::Status GdiCaptureBackend::capture(const rillshot::core::RectI& r
 
     if (!ok) {
         return rillshot::core::Status::failure("gdi-bitblt-failed", "BitBlt failed");
+    }
+    if (!flushed) {
+        return rillshot::core::Status::failure("gdi-flush-failed", "GdiFlush failed before reading capture pixels");
     }
 
     out.image = std::move(image);

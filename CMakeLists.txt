@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.23)
-project(Rillshot VERSION 1.2.0 LANGUAGES CXX)
+project(Rillshot VERSION 1.2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,10 +12,12 @@ endif()
 
 option(RILLSHOT_BUILD_TESTS "Build platform-neutral tests" ON)
 option(RILLSHOT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(RILLSHOT_BUILD_BENCHMARKS "Build non-gating microbenchmarks" OFF)
 set(_rillshot_windows_apps_default OFF)
 if(WIN32)
     set(_rillshot_windows_apps_default ON)
 endif()
+
 option(
     RILLSHOT_BUILD_WINDOWS_APPS
     "Build the Win32 capture, CLI, and legacy GUI targets"
@@ -65,6 +67,7 @@ add_library(rillshot_core STATIC
     src/session/CaptureSessionOptions.cpp
     src/session/SessionInputSupport.cpp
     src/stitch/StitchEngine.cpp
+    src/stitch/StitchedImageBuilder.cpp
 )
 
 target_include_directories(rillshot_core PUBLIC
@@ -74,6 +77,15 @@ target_include_directories(rillshot_core PUBLIC
 target_compile_features(rillshot_core PUBLIC cxx_std_23)
 
 rillshot_enable_warnings(rillshot_core)
+
+if(RILLSHOT_BUILD_BENCHMARKS)
+    add_executable(stitch_benchmark benchmarks/stitch_benchmark.cpp)
+    target_include_directories(stitch_benchmark PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests
+    )
+    target_link_libraries(stitch_benchmark PRIVATE rillshot_core)
+    rillshot_enable_warnings(stitch_benchmark)
+endif()
 
 add_library(rillshot_cli_options STATIC
     src/cli/CliOptions.cpp
@@ -191,6 +203,12 @@ endif()
 
 if(RILLSHOT_BUILD_TESTS)
     enable_testing()
+    if(RILLSHOT_BUILD_WINDOWS_APPS)
+        add_executable(stabilization_test tests/stabilization_test.cpp)
+        target_link_libraries(stabilization_test PRIVATE rillshot_windows)
+        rillshot_enable_warnings(stabilization_test)
+        add_test(NAME stabilization_test COMMAND stabilization_test)
+    endif()
     add_executable(stitch_engine_test tests/stitch_engine_test.cpp)
     target_link_libraries(stitch_engine_test PRIVATE rillshot_core rillshot_gui_model)
     rillshot_enable_warnings(stitch_engine_test)
@@ -200,6 +218,11 @@ if(RILLSHOT_BUILD_TESTS)
     target_link_libraries(stitch_engine_sticky_test PRIVATE rillshot_core)
     rillshot_enable_warnings(stitch_engine_sticky_test)
     add_test(NAME stitch_engine_sticky_test COMMAND stitch_engine_sticky_test)
+
+    add_executable(stitched_image_builder_test tests/stitched_image_builder_test.cpp)
+    target_link_libraries(stitched_image_builder_test PRIVATE rillshot_core)
+    rillshot_enable_warnings(stitched_image_builder_test)
+    add_test(NAME stitched_image_builder_test COMMAND stitched_image_builder_test)
 
     add_executable(session_contract_test tests/session_contract_test.cpp)
     target_link_libraries(session_contract_test PRIVATE rillshot_core rillshot_gui_model)

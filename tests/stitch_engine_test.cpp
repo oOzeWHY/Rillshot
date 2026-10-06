@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <cstring>
+#include <random>
 
 using rillshot::stitch::MatchOptions;
 using rillshot::stitch::StitchEngine;
@@ -171,8 +173,10 @@ static int testTallFrameUsesBoundedRefinement() {
         match.primaryCandidatesRefined != 24 ||
         match.diverseCandidatesRefined != 8 ||
         match.refinedCandidatesEvaluated != 32 ||
+        match.refinedLumaSamplesPrepared <= 0 ||
         match.refinedSamplesEvaluated <= 0 ||
-        match.method != "CoarseToFineMultiPhaseGridNcc") {
+        match.coarseLumaSamplesPrepared <= 0 ||
+        match.method != "CoarseToFineCachedGridNcc") {
         return fail("tall-frame matcher did not keep refinement bounded");
     }
     return EXIT_SUCCESS;
@@ -239,12 +243,81 @@ static int testRefinementUsesSecondSamplingPhase() {
     return EXIT_SUCCESS;
 }
 
+static int testExactNoMotionUsesFastPath() {
+    auto frame = makeDocument(320, 240);
+    MatchOptions options;
+    options.minOverlapPx = 32;
+    options.maxOverlapPx = frame.height();
+    const auto match = StitchEngine{}.findVerticalOverlap(
+        frame, frame, options);
+    if (!match.ok || match.newContentHeight != 0 ||
+        !match.exactContentMatch ||
+        match.method != "ExactContentEquality" ||
+        match.candidatesEvaluated != 1) {
+        return fail("identical informative frames did not use the exact fast path");
+    }
+    return EXIT_SUCCESS;
+}
+
 static int testWidthMismatchRejected() {
     auto first = makeDocument(160, 160);
     auto second = makeDocument(161, 160);
     StitchEngine engine;
     if (engine.findVerticalOverlap(first, second).ok) {
         return fail("width mismatch should be rejected");
+    }
+    return EXIT_SUCCESS;
+}
+
+static int testExactBorderAgainstExhaustiveOracle() {
+    // Exercise KMP fallback chains, non-periodic borders, periods that do not
+    // divide the height, and differences at the very end of otherwise equal
+    // rows. The independent oracle checks every legal overlap byte by byte.
+    std::mt19937 random(20260917);
+    for (int trial = 0; trial < 200; ++trial) {
+        const int height = 24 + static_cast<int>(random() % 41);
+        const int period = 1 + static_cast<int>(random() % 19);
+        auto frame = makeDocument(33, height + 5);
+        for (int y = 0; y < height; ++y) {
+            auto* row = frame.row(y + 2);
+            const int label = trial % 2 == 0 ? y % period :
+                static_cast<int>(random() % 4);
+            for (int x = 0; x < frame.width(); ++x) {
+                row[x * 4] = static_cast<unsigned char>(x * 7);
+                row[x * 4 + 1] = static_cast<unsigned char>(x * 3);
+                row[x * 4 + 2] = static_cast<unsigned char>(x * 5);
+                row[x * 4 + 3] = 255;
+            }
+            row[frame.stride() - 2] = static_cast<unsigned char>(label * 11);
+        }
+        MatchOptions options;
+        options.ignoreTopPx = 2;
+        options.ignoreBottomPx = 3;
+        options.minOverlapPx = 4 + static_cast<int>(random() % 8);
+        options.xStep = 1;
+        options.yStep = 1;
+        bool alternative = false;
+        for (int overlap = options.minOverlapPx; overlap < height; ++overlap) {
+            bool equal = true;
+            for (int y = 0; y < overlap; ++y) {
+                if (std::memcmp(frame.row(2 + y),
+                                frame.row(2 + height - overlap + y),
+                                static_cast<std::size_t>(frame.stride())) != 0) {
+                    equal = false;
+                    break;
+                }
+            }
+            alternative = alternative || equal;
+        }
+        for (auto direction : {rillshot::core::ScrollDirection::Up,
+                               rillshot::core::ScrollDirection::Down}) {
+            options.direction = direction;
+            const auto result = StitchEngine{}.findVerticalOverlap(frame, frame, options);
+            if (result.exactContentMatch == alternative ||
+                (result.exactContentMatch && result.newContentHeight != 0)) {
+                return fail("exact-row shortcut disagrees with exhaustive border oracle");
+            }
+        }
     }
     return EXIT_SUCCESS;
 }
@@ -272,6 +345,28 @@ static int testInvalidMatchOptionsRejected() {
     return EXIT_SUCCESS;
 }
 
+static int testNonpositiveSamplingStepsMatchUnitSteps() {
+    auto document = makeDocument(80, 160);
+    auto previous = cropDocumentWindow(document, 0, 96);
+    auto current = cropDocumentWindow(document, 32, 96);
+    MatchOptions options;
+    options.xStep = 1;
+    options.yStep = 1;
+    const auto expected = StitchEngine{}.findVerticalOverlap(previous, current, options);
+    for (const int step : {0, -1, (std::numeric_limits<int>::min)()}) {
+        options.xStep = step;
+        options.yStep = step;
+        const auto actual = StitchEngine{}.findVerticalOverlap(previous, current, options);
+        if (actual.overlapPx != expected.overlapPx ||
+            actual.confidence != expected.confidence ||
+            actual.refinedSamplesEvaluated != expected.refinedSamplesEvaluated ||
+            actual.refinedLumaSamplesPrepared != expected.refinedLumaSamplesPrepared) {
+            return fail("clamped sampling steps changed cache phases or NCC results");
+        }
+    }
+    return EXIT_SUCCESS;
+}
+
 int main() {
     if (testBasicVerticalOverlap() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testBasicUpwardOverlapAndPrepend() != EXIT_SUCCESS) return EXIT_FAILURE;
@@ -281,7 +376,10 @@ int main() {
     if (testTallFrameUsesBoundedRefinement() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testExtremeHeightUsesBoundedCoarseRetention() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testRefinementUsesSecondSamplingPhase() != EXIT_SUCCESS) return EXIT_FAILURE;
+    if (testExactNoMotionUsesFastPath() != EXIT_SUCCESS) return EXIT_FAILURE;
+    if (testExactBorderAgainstExhaustiveOracle() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testWidthMismatchRejected() != EXIT_SUCCESS) return EXIT_FAILURE;
     if (testInvalidMatchOptionsRejected() != EXIT_SUCCESS) return EXIT_FAILURE;
+    if (testNonpositiveSamplingStepsMatchUnitSteps() != EXIT_SUCCESS) return EXIT_FAILURE;
     return EXIT_SUCCESS;
 }

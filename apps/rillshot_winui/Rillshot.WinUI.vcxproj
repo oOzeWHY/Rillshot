@@ -198,6 +198,7 @@
     <ClCompile Include="..\..\src\session\SessionInputSupport.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="..\..\src\session\SessionOutputSupport.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="..\..\src\stitch\StitchEngine.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\stitch\StitchedImageBuilder.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
   </ItemGroup>
 
   <ItemGroup>
@@ -231,6 +232,8 @@
     <ClInclude Include="..\..\src\session\CaptureSession.h" />
     <ClInclude Include="..\..\src\session\SessionInputSupport.h" />
     <ClInclude Include="..\..\src\session\SessionOutputSupport.h" />
+    <ClInclude Include="..\..\src\stitch\StitchEngine.h" />
+    <ClInclude Include="..\..\src\stitch\StitchedImageBuilder.h" />
   </ItemGroup>
 
   <ItemGroup>

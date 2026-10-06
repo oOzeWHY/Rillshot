@@ -1,6 +1,6 @@
 # Rillshot WinUI 3
 
-这是 Rillshot 1.2.0 的 C++/WinRT 主界面。它直接连接共享 `CaptureController` 和 `CaptureSession`。
+这是 Rillshot 1.2.1 的 C++/WinRT 主界面。它直接连接共享 `CaptureController` 和 `CaptureSession`。
 
 ## 职责拆分
 

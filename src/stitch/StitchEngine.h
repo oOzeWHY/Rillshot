@@ -38,8 +38,11 @@ struct MatchResult {
     int primaryCandidatesRefined = 0;
     int diverseCandidatesRefined = 0;
     int refinedCandidatesEvaluated = 0;
+    std::int64_t coarseLumaSamplesPrepared = 0;
+    std::int64_t refinedLumaSamplesPrepared = 0;
     std::int64_t refinedSamplesEvaluated = 0;
-    std::string method = "CoarseToFineMultiPhaseGridNcc";
+    bool exactContentMatch = false;
+    std::string method = "CoarseToFineCachedGridNcc";
     std::string message;
 };
 

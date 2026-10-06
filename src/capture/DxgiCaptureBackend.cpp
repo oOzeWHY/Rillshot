@@ -177,6 +177,15 @@ rillshot::core::Status captureFromOutput(
     }
 
     D3D11_TEXTURE2D_DESC stagingDesc = desc;
+    // Only the selected capture rectangle is read by the CPU. Keeping the
+    // staging texture region-sized avoids copying and mapping the rest of a
+    // 4K/8K desktop for every stabilization sample.
+    stagingDesc.Width = static_cast<UINT>(region.width);
+    stagingDesc.Height = static_cast<UINT>(region.height);
+    stagingDesc.MipLevels = 1;
+    stagingDesc.ArraySize = 1;
+    stagingDesc.SampleDesc.Count = 1;
+    stagingDesc.SampleDesc.Quality = 0;
     stagingDesc.Usage = D3D11_USAGE_STAGING;
     stagingDesc.BindFlags = 0;
     stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
@@ -188,7 +197,16 @@ rillshot::core::Status captureFromOutput(
         return rillshot::core::Status::failure("dxgi-create-staging-failed", hrMessage("CreateTexture2D(staging)", hr));
     }
 
-    context->CopyResource(staging.Get(), acquiredTexture.Get());
+    const D3D11_BOX sourceBox{
+        static_cast<UINT>(relativeX),
+        static_cast<UINT>(relativeY),
+        0,
+        static_cast<UINT>(relativeRight),
+        static_cast<UINT>(relativeBottom),
+        1};
+    context->CopySubresourceRegion(
+        staging.Get(), 0, 0, 0, 0,
+        acquiredTexture.Get(), 0, &sourceBox);
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     hr = context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped);
@@ -199,23 +217,17 @@ rillshot::core::Status captureFromOutput(
 
     rillshot::core::Image image(region.width, region.height);
     const auto rowBytes = static_cast<std::size_t>(image.stride());
-    constexpr auto bytesPerPixel = static_cast<std::size_t>(4);
-    if (!mapped.pData ||
-        static_cast<std::uint64_t>(relativeX) >
-            static_cast<std::uint64_t>((std::numeric_limits<std::size_t>::max)() / bytesPerPixel)) {
+    if (!mapped.pData) {
         return rillshot::core::Status::failure(
             "dxgi-invalid-frame-layout", "mapped desktop texture has an invalid layout");
     }
-    const auto sourceXBytes =
-        static_cast<std::size_t>(relativeX) * bytesPerPixel;
-    if (static_cast<std::size_t>(mapped.RowPitch) < rowBytes ||
-        sourceXBytes > static_cast<std::size_t>(mapped.RowPitch) - rowBytes) {
+    if (static_cast<std::size_t>(mapped.RowPitch) < rowBytes) {
         return rillshot::core::Status::failure(
             "dxgi-invalid-row-pitch",
             "mapped desktop texture row pitch is smaller than the capture span");
     }
     const auto finalSourceRow =
-        static_cast<std::uint64_t>(relativeBottom - 1);
+        static_cast<std::uint64_t>(region.height - 1);
     if (mapped.RowPitch == 0 ||
         finalSourceRow >
             static_cast<std::uint64_t>((std::numeric_limits<std::size_t>::max)() /
@@ -226,10 +238,9 @@ rillshot::core::Status captureFromOutput(
     }
 
     for (int y = 0; y < region.height; ++y) {
-        const auto sourceY = static_cast<std::size_t>(relativeY) +
-            static_cast<std::size_t>(y);
+        const auto sourceY = static_cast<std::size_t>(y);
         const auto* src = static_cast<const unsigned char*>(mapped.pData) +
-            sourceY * static_cast<std::size_t>(mapped.RowPitch) + sourceXBytes;
+            sourceY * static_cast<std::size_t>(mapped.RowPitch);
         std::memcpy(image.row(y), src, rowBytes);
     }
 

@@ -33,7 +33,7 @@ $artifactRoot = Join-Path $projectRoot "artifacts"
 $cacheRoot = Join-Path $artifactRoot "cache"
 $logRoot = Join-Path $artifactRoot "logs"
 $releaseRoot = Join-Path $artifactRoot "release"
-$version = "1.2.0"
+$version = "1.2.1"
 $artifactVersion = $version
 if ($ReleaseStage -eq "Preview") {
     $artifactVersion = "$version-preview.$PreviewNumber"

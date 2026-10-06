@@ -102,7 +102,10 @@ rillshot::core::Status KeyboardDriver::advance(const ScrollRequest& request) {
                 "keyboard-sendinput-failed",
                 "SendInput did not insert the keyboard event; UIPI, focus, or foreground-window state may have blocked input");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(delayMs(rng)));
+        // The session handles settling after the final key-up.
+        if (i + 1 < request.keyRepeats) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs(rng)));
+        }
     }
 
     return rillshot::core::Status::success();
