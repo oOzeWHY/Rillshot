@@ -7,7 +7,7 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="RillshotWindowBackgroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="RillshotWindowBackgroundBrush" Color="#F3F3F3"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="RillshotWindowBackgroundBrush" Color="#202020"/>

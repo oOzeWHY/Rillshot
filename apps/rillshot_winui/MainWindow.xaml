@@ -461,7 +461,7 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Spacing="3" VerticalAlignment="Center">
                                         <TextBlock Text="窗口背景" Style="{StaticResource SettingTitleStyle}"/>
-                                        <TextBlock Text="纯色不会受后方窗口颜色影响；浅色主题为白色。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="浅色主题采用柔和灰白色；纯色不会受后方窗口颜色影响。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <ComboBox x:Name="WindowBackgroundBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="WindowBackground_SelectionChanged" AutomationProperties.Name="窗口背景">
                                         <ComboBoxItem Content="纯色"/>
