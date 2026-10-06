@@ -12,6 +12,7 @@ enum class ThemePreference {
 
 struct UserPreferences {
     ThemePreference theme = ThemePreference::System;
+    bool dimOutsideCapture = false;
     bool globalHotkeyEnabled = true;
     rillshot::gui::HotkeyBinding globalHotkey{};
 };

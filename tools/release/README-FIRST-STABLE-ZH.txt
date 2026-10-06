@@ -1,4 +1,4 @@
-Rillshot 1.2.1 Portable
+Rillshot 1.2.2 Portable
 =======================
 
 这是正式的 Windows x64 Portable 版本，不包含源码，也不需要安装。

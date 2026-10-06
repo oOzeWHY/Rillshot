@@ -47,6 +47,7 @@ void logHotkeyResult(
 } // namespace
 
 MainWindow::~MainWindow() noexcept {
+    captureDimmer_.hide();
     stopNavigationPrewarmObservation();
     stopNavigationWindowResizeAnimation();
     stopPageNavigationAnimation();
@@ -70,6 +71,7 @@ void MainWindow::initializePreferences() {
         break;
     }
     GlobalHotkeySwitch().IsOn(preferences_.globalHotkeyEnabled);
+    DimOutsideCaptureSwitch().IsOn(preferences_.dimOutsideCapture);
     HotkeyBox().Text(rillshot::gui::formatHotkeyBinding(
         preferences_.globalHotkey));
     applyingPreferences_ = false;
@@ -227,6 +229,14 @@ void MainWindow::Theme_SelectionChanged(
     default: preferences_.theme = rillshot::platform::ThemePreference::System; break;
     }
     queueThemePreferenceApply();
+}
+
+void MainWindow::DimOutsideCapture_Toggled(
+    [[maybe_unused]] IInspectable const& sender,
+    [[maybe_unused]] RoutedEventArgs const& eventArgs) {
+    if (!initialized_ || applyingPreferences_) return;
+    preferences_.dimOutsideCapture = DimOutsideCaptureSwitch().IsOn();
+    queuePreferenceSave();
 }
 
 void MainWindow::GlobalHotkey_Toggled(

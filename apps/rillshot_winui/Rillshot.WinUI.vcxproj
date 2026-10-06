@@ -199,6 +199,7 @@
     <ClCompile Include="..\..\src\session\SessionOutputSupport.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="..\..\src\stitch\StitchEngine.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
     <ClCompile Include="..\..\src\stitch\StitchedImageBuilder.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
+    <ClCompile Include="..\..\src\gui\CaptureDimmer.cpp"><PrecompiledHeader>NotUsing</PrecompiledHeader></ClCompile>
   </ItemGroup>
 
   <ItemGroup>
@@ -234,6 +235,7 @@
     <ClInclude Include="..\..\src\session\SessionOutputSupport.h" />
     <ClInclude Include="..\..\src\stitch\StitchEngine.h" />
     <ClInclude Include="..\..\src\stitch\StitchedImageBuilder.h" />
+    <ClInclude Include="..\..\src\gui\CaptureDimmer.h" />
   </ItemGroup>
 
   <ItemGroup>

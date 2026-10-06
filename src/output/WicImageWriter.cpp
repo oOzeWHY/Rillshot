@@ -1,10 +1,12 @@
 #include "output/WicImageWriter.h"
+#include "stitch/StitchedImageBuilder.h"
 
 #include <Windows.h>
 #include <wincodec.h>
 #include <wrl/client.h>
 
 #include <filesystem>
+#include <algorithm>
 #include <limits>
 #include <sstream>
 #include <system_error>
@@ -65,21 +67,16 @@ private:
     bool committed_ = false;
 };
 
-} // namespace
-
-rillshot::core::Status WicImageWriter::write(
-    const rillshot::core::Image& image,
+template <typename ImageSource, typename VisitChunks>
+rillshot::core::Status writeSource(
+    const ImageSource& image,
     const std::wstring& path,
     ImageFormat format,
-    bool allowOverwrite) const {
+    bool allowOverwrite,
+    VisitChunks&& visitChunks) {
 
     if (image.empty()) {
         return rillshot::core::Status::failure("wic-empty-image", "cannot write an empty image");
-    }
-
-    const auto bytes = image.bytes();
-    if (bytes.size() > (std::numeric_limits<UINT>::max)()) {
-        return rillshot::core::Status::failure("wic-image-too-large", "image byte size exceeds WIC WritePixels UINT limit");
     }
 
     const std::filesystem::path outputPath(path);
@@ -169,11 +166,23 @@ rillshot::core::Status WicImageWriter::write(
         return rillshot::core::Status::failure("wic-pixel-format-changed", "WIC encoder did not accept 32bpp BGRA");
     }
 
-    hr = frame->WritePixels(
-        static_cast<UINT>(image.height()),
-        static_cast<UINT>(image.stride()),
-        static_cast<UINT>(bytes.size()),
-        const_cast<BYTE*>(reinterpret_cast<const BYTE*>(bytes.data())));
+    // WritePixels can be called repeatedly. Bound each call's UINT byte count
+    // and feed contiguous rows directly; no whole-image materialization or
+    // scratch buffer, even when the long image spans hundreds of chunks.
+    visitChunks([&](const rillshot::core::Image& chunk) {
+        const UINT stride = static_cast<UINT>(chunk.stride());
+        const UINT maximumRows = (std::numeric_limits<UINT>::max)() / stride;
+        int y = 0;
+        while (y < chunk.height()) {
+            const UINT rows = (std::min)(static_cast<UINT>(chunk.height() - y),
+                (std::min)(maximumRows, 64U));
+            hr = frame->WritePixels(rows, stride, rows * stride,
+                const_cast<BYTE*>(chunk.row(y)));
+            if (FAILED(hr)) return false;
+            y += static_cast<int>(rows);
+        }
+        return true;
+    });
     if (FAILED(hr)) {
         return rillshot::core::Status::failure("wic-write-pixels-failed", hrMessage("WritePixels", hr));
     }
@@ -208,6 +217,22 @@ rillshot::core::Status WicImageWriter::write(
     }
     temporaryFile.commit();
     return rillshot::core::Status::success();
+}
+
+} // namespace
+
+rillshot::core::Status WicImageWriter::write(
+    const rillshot::core::Image& image, const std::wstring& path,
+    ImageFormat format, bool allowOverwrite) const {
+    return writeSource(image, path, format, allowOverwrite,
+        [&](auto&& visitor) { return visitor(image); });
+}
+
+rillshot::core::Status WicImageWriter::write(
+    const rillshot::stitch::StitchedImageBuilder& image, const std::wstring& path,
+    ImageFormat format, bool allowOverwrite) const {
+    return writeSource(image, path, format, allowOverwrite,
+        [&](auto&& visitor) { return image.visitChunks(visitor); });
 }
 
 } // namespace rillshot::output

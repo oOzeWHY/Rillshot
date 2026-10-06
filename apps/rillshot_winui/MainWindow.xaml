@@ -460,6 +460,18 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="220"/>
                                     </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="3" VerticalAlignment="Center">
+                                        <TextBlock Text="截图时调暗区域外" Style="{StaticResource SettingTitleStyle}"/>
+                                        <TextBlock Text="突出截图区域，不影响截图亮度或鼠标操作。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="DimOutsideCaptureSwitch" Grid.Column="1" IsOn="False" OnContent="已启用" OffContent="已关闭" Toggled="DimOutsideCapture_Toggled" AutomationProperties.Name="截图时调暗截图区域外的内容"/>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock Text="全局快捷键" Style="{StaticResource SettingTitleStyle}" VerticalAlignment="Center"/>
                                     <ToggleSwitch x:Name="GlobalHotkeySwitch" Grid.Column="1" IsOn="True" OnContent="已启用" OffContent="已关闭" Toggled="GlobalHotkey_Toggled" AutomationProperties.Name="启用全局快捷键"/>
                                 </Grid>
@@ -585,7 +597,7 @@
                         <Border Style="{StaticResource SettingsCardStyle}">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="关于与许可" Style="{StaticResource SectionTitleStyle}"/>
-                                <TextBlock Text="Rillshot 1.2.1 · Copyright © 2026 Rillshot contributors" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Rillshot 1.2.2 · Copyright © 2026 Rillshot contributors" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
                                 <TextBlock Text="社区版本仅按 GNU General Public License 第 3 版提供。你可以依照该许可复制、修改和再分发本程序；本程序不提供任何担保。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
                                 <HyperlinkButton
                                     Content="查看 GNU GPL 许可全文"

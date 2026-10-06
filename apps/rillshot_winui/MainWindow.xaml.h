@@ -2,6 +2,7 @@
 
 #include "MainWindow.g.h"
 #include "gui/CaptureController.h"
+#include "gui/CaptureDimmer.h"
 #include "gui/CaptureWorkflow.h"
 #include "gui/GlobalHotkey.h"
 #include "gui/WindowGeometry.h"
@@ -82,6 +83,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void GlobalHotkey_Toggled(
         winrt::Windows::Foundation::IInspectable const& sender,
         Microsoft::UI::Xaml::RoutedEventArgs const& eventArgs);
+    void DimOutsideCapture_Toggled(
+        winrt::Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::RoutedEventArgs const& eventArgs);
     void HotkeyBox_KeyDown(
         winrt::Windows::Foundation::IInspectable const& sender,
         Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& eventArgs);
@@ -114,7 +118,7 @@ private:
         HWND window,
         bool placementValid,
         WINDOWPLACEMENT placement);
-    [[nodiscard]] bool hideForCapture();
+    [[nodiscard]] bool hideForCapture(const rillshot::core::RectI& region);
     void restoreAfterCapture();
     void requestCaptureStop();
     void captureCompletedOnUiThread();
@@ -160,6 +164,7 @@ private:
 
     rillshot::gui::CaptureWorkflowModel workflow_;
     rillshot::gui::CaptureController captureController_;
+    rillshot::gui::CaptureDimmer captureDimmer_;
     rillshot::gui::GlobalHotkey globalHotkey_;
     rillshot::platform::UserPreferences preferences_;
     struct PreferenceSaveState;

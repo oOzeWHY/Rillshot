@@ -130,6 +130,14 @@ Status captureWithFallback(
                 continue;
             }
             frame = std::move(candidate);
+            // Keep the last healthy backend first for this session. Otherwise
+            // unsupported DXGI/remote desktops recreate a failing GPU device
+            // before every GDI sample, and can consume the stability deadline.
+            if (backendIndex != 0) {
+                std::rotate(backends.begin(), backends.begin() +
+                    static_cast<std::ptrdiff_t>(backendIndex), backends.begin() +
+                    static_cast<std::ptrdiff_t>(backendIndex + 1));
+            }
             return status;
         }
 

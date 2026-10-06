@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.23)
-project(Rillshot VERSION 1.2.1 LANGUAGES CXX)
+project(Rillshot VERSION 1.2.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -129,6 +129,7 @@ if(RILLSHOT_BUILD_WINDOWS_APPS)
         src/platform/StartupDiagnostics.cpp
         src/platform/WinDpi.cpp
         src/platform/WinUtf.cpp
+        src/gui/CaptureDimmer.cpp
     )
 
     target_include_directories(rillshot_windows PUBLIC
@@ -157,6 +158,12 @@ if(RILLSHOT_BUILD_WINDOWS_APPS)
 
     target_compile_features(rillshot_windows PUBLIC cxx_std_23)
     rillshot_enable_warnings(rillshot_windows)
+
+    if(RILLSHOT_BUILD_BENCHMARKS)
+        add_executable(windows_resource_benchmark benchmarks/windows_resource_benchmark.cpp)
+        target_link_libraries(windows_resource_benchmark PRIVATE rillshot_windows psapi dwmapi)
+        rillshot_enable_warnings(windows_resource_benchmark)
+    endif()
 
     add_executable(rillshot_cli
         apps/rillshot_cli/main.cpp
@@ -204,6 +211,11 @@ endif()
 if(RILLSHOT_BUILD_TESTS)
     enable_testing()
     if(RILLSHOT_BUILD_WINDOWS_APPS)
+        add_executable(capture_output_test tests/capture_output_test.cpp)
+        target_link_libraries(capture_output_test PRIVATE rillshot_windows)
+        rillshot_enable_warnings(capture_output_test)
+        add_test(NAME capture_output_test COMMAND capture_output_test)
+
         add_executable(stabilization_test tests/stabilization_test.cpp)
         target_link_libraries(stabilization_test PRIVATE rillshot_windows)
         rillshot_enable_warnings(stabilization_test)

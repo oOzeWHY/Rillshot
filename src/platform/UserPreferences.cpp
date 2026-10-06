@@ -53,6 +53,8 @@ UserPreferences loadUserPreferences() noexcept {
         }
         preferences.theme = parseTheme(GetPrivateProfileIntW(
             L"appearance", L"theme", 0, path.c_str()));
+        preferences.dimOutsideCapture = GetPrivateProfileIntW(
+            L"capture", L"dimOutside", 0, path.c_str()) != 0;
         preferences.globalHotkeyEnabled = GetPrivateProfileIntW(
             L"shortcut", L"enabled", 1, path.c_str()) != 0;
         preferences.globalHotkey.modifiers = static_cast<std::uint32_t>(
@@ -90,6 +92,8 @@ bool saveUserPreferences(const UserPreferences& preferences) noexcept {
                    L"appearance",
                    L"theme",
                    static_cast<std::uint32_t>(themeValue(preferences.theme))) &&
+               writeInteger(path, L"capture", L"dimOutside",
+                   preferences.dimOutsideCapture ? 1U : 0U) &&
                writeInteger(
                    path,
                    L"shortcut",

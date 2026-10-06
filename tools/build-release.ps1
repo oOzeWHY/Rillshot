@@ -33,7 +33,7 @@ $artifactRoot = Join-Path $projectRoot "artifacts"
 $cacheRoot = Join-Path $artifactRoot "cache"
 $logRoot = Join-Path $artifactRoot "logs"
 $releaseRoot = Join-Path $artifactRoot "release"
-$version = "1.2.1"
+$version = "1.2.2"
 $artifactVersion = $version
 if ($ReleaseStage -eq "Preview") {
     $artifactVersion = "$version-preview.$PreviewNumber"
@@ -205,6 +205,15 @@ New-Item -ItemType Directory -Path `
     $artifactRoot, $cacheRoot, $logRoot, $releaseRoot, $IntermediateRoot -Force | Out-Null
 
 $artifactDrive = $null
+$buildEnvironmentNames = @(
+    'NUGET_PACKAGES', 'NUGET_HTTP_CACHE_PATH', 'NUGET_SCRATCH',
+    'NUGET_PLUGINS_CACHE_PATH', 'TEMP', 'TMP', 'NUGET_CLI_LANGUAGE',
+    'DOTNET_CLI_UI_LANGUAGE', 'VSLANG', 'MSBUILDDISABLENODEREUSE')
+$originalBuildEnvironment = @{}
+foreach ($buildEnvironmentName in $buildEnvironmentNames) {
+    $originalBuildEnvironment[$buildEnvironmentName] =
+        [Environment]::GetEnvironmentVariable($buildEnvironmentName, 'Process')
+}
 try {
     # Keep NuGet extraction paths below legacy MAX_PATH limits.
     $artifactDrive = New-ArtifactDriveMapping $cacheRoot
@@ -220,6 +229,8 @@ try {
     $env:NUGET_CLI_LANGUAGE = "en-us"
     $env:DOTNET_CLI_UI_LANGUAGE = "en-US"
     $env:VSLANG = "1033"
+    # Worker nodes must not outlive the temporary cache drive mapping.
+    $env:MSBUILDDISABLENODEREUSE = "1"
     New-Item -ItemType Directory -Path `
         $env:NUGET_PACKAGES, `
         $env:NUGET_HTTP_CACHE_PATH, `
@@ -319,6 +330,7 @@ try {
         Invoke-Logged $msbuild (@(
             $solutionPath,
             "/t:Restore",
+            "/nr:false",
             "/nologo",
             "/warnaserror:NU1603;NU1605;NU1608"
         ) + $commonProperties) $winuiLog
@@ -326,6 +338,7 @@ try {
         $buildArguments = @(
             $solutionPath,
             "/m",
+            "/nr:false",
             "/nologo"
         ) + $commonProperties
         if ($Distribution -eq "Msix") {
@@ -426,5 +439,12 @@ try {
 
     Write-Host "Build pipeline completed successfully."
 } finally {
-    Remove-ArtifactDriveMapping $artifactDrive
+    try {
+        Remove-ArtifactDriveMapping $artifactDrive
+    } finally {
+        foreach ($buildEnvironmentName in $buildEnvironmentNames) {
+            [Environment]::SetEnvironmentVariable($buildEnvironmentName,
+                $originalBuildEnvironment[$buildEnvironmentName], 'Process')
+        }
+    }
 }

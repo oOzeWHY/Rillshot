@@ -134,20 +134,20 @@ void MainWindow::StartCapture_Click(
         CaptureDestinationText().Text(config->outPath);
     }
 
-    if (!hideForCapture()) {
+    if (!hideForCapture(config->region)) {
         rillshot::session::CaptureSessionResult failure;
         failure.stopReason = rillshot::core::StopReason::CaptureFailed;
-        failure.message = "main window could not be hidden before capture";
+        failure.message = "capture environment could not be prepared";
         [[maybe_unused]] const auto completed = workflow_.completeCapture(
-            failure, config->outPath, L"主窗口未能隐藏，截图没有启动，也未写入图像。");
+            failure, config->outPath, L"无法准备截图环境，截图没有启动，也未写入图像。");
         lastOutputSaved_ = false;
         lastOutputPath_.clear();
         restoreAfterCapture();
         renderStage();
         showInfo(
             InfoBarSeverity::Error,
-            L"无法隐藏窗口",
-            L"截图未启动，避免主窗口进入截图区域或接收滚轮输入。");
+            L"无法准备截图环境",
+            L"主窗口无法隐藏或区域外调暗无法启用。请关闭调暗选项后重试。");
         ResetButton().Focus(FocusState::Programmatic);
         return;
     }
@@ -220,6 +220,7 @@ void MainWindow::requestCaptureStop() {
         [[maybe_unused]] const auto stop = workflow_.requestStop();
     }
     captureController_.requestStop();
+    captureDimmer_.hide();
     renderStage();
     showInfo(
         InfoBarSeverity::Informational,
@@ -227,19 +228,21 @@ void MainWindow::requestCaptureStop() {
         L"正在保存可用结果。");
 }
 
-bool MainWindow::hideForCapture() {
+bool MainWindow::hideForCapture(const rillshot::core::RectI& region) {
     try {
         const HWND handle = windowHandle();
         captureWindowPlacementValid_ =
             GetWindowPlacement(handle, &captureWindowPlacement_) != FALSE;
         AppWindow().Hide();
-        return rillshot::gui::win32::hideWindowForCapture(handle);
+        if (!rillshot::gui::win32::hideWindowForCapture(handle)) return false;
+        return !preferences_.dimOutsideCapture || captureDimmer_.show(region);
     } catch (...) {
         return false;
     }
 }
 
 void MainWindow::restoreAfterCapture() {
+    captureDimmer_.hide();
     try {
         rillshot::gui::win32::clearWindowCaptureProtection(windowHandle());
         AppWindow().Show();
@@ -264,6 +267,7 @@ void MainWindow::restoreAfterCapture() {
 }
 
 void MainWindow::captureCompletedOnUiThread() {
+    captureDimmer_.hide();
     captureController_.joinCompleted();
     auto completion = captureController_.takeCompletion();
     if (!completion) {

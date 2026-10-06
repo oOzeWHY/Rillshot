@@ -107,4 +107,21 @@ rillshot::core::Status validateOutputCollisionPolicy(
     return rillshot::core::Status::success();
 }
 
+rillshot::core::Status writeImageNoThrow(
+    const rillshot::output::WicImageWriter& writer,
+    const rillshot::stitch::StitchedImageBuilder& image,
+    const std::wstring& path,
+    rillshot::output::ImageFormat format,
+    bool allowOverwrite) {
+    try {
+        return writer.write(image, path, format, allowOverwrite);
+    } catch (const std::exception& exception) {
+        return rillshot::core::Status::failure("image-write-exception",
+            std::string("image writer raised an exception: ") + exception.what());
+    } catch (...) {
+        return rillshot::core::Status::failure("image-write-exception",
+            "image writer raised an unknown exception");
+    }
+}
+
 } // namespace rillshot::session::detail

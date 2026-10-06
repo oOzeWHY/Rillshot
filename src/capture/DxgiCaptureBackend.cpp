@@ -12,6 +12,20 @@
 #include <sstream>
 
 namespace rillshot::capture {
+
+// One backend is owned by one capture session/worker. COM resources are never
+// shared across threads or capture sessions, and are released with the backend.
+struct DxgiCaptureState {
+    Microsoft::WRL::ComPtr<IDXGIOutput> output;
+    Microsoft::WRL::ComPtr<ID3D11Device> device;
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+    Microsoft::WRL::ComPtr<IDXGIOutputDuplication> duplication;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> staging;
+    DXGI_OUTPUT_DESC description{};
+    rillshot::core::RectI region{};
+    bool hasPixels = false;
+};
+
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -66,6 +80,8 @@ bool contains(const RECT& outer, const rillshot::core::RectI& inner) {
 }
 
 rillshot::core::Status captureFromOutput(
+    DxgiCaptureState& state,
+    DxgiCaptureStatistics& statistics,
     IDXGIAdapter1* adapter,
     IDXGIOutput* output,
     const DXGI_OUTPUT_DESC& outputDesc,
@@ -85,29 +101,18 @@ rillshot::core::Status captureFromOutput(
         D3D_FEATURE_LEVEL_10_0,
     };
 
-    ComPtr<ID3D11Device> device;
-    ComPtr<ID3D11DeviceContext> context;
-    D3D_FEATURE_LEVEL selectedLevel{};
-    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    auto& device = state.device;
+    auto& context = state.context;
+    auto& duplication = state.duplication;
+    auto& staging = state.staging;
+    HRESULT hr = S_OK;
+    if (!duplication) {
+        D3D_FEATURE_LEVEL selectedLevel{};
+        UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #if defined(_DEBUG)
-    flags |= D3D11_CREATE_DEVICE_DEBUG;
+        flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-    HRESULT hr = D3D11CreateDevice(
-        adapter,
-        D3D_DRIVER_TYPE_UNKNOWN,
-        nullptr,
-        flags,
-        levels,
-        static_cast<UINT>(std::size(levels)),
-        D3D11_SDK_VERSION,
-        &device,
-        &selectedLevel,
-        &context);
-
-#if defined(_DEBUG)
-    if (FAILED(hr)) {
-        flags &= ~D3D11_CREATE_DEVICE_DEBUG;
         hr = D3D11CreateDevice(
             adapter,
             D3D_DRIVER_TYPE_UNKNOWN,
@@ -119,94 +124,125 @@ rillshot::core::Status captureFromOutput(
             &device,
             &selectedLevel,
             &context);
-    }
+
+#if defined(_DEBUG)
+        if (FAILED(hr)) {
+            flags &= ~D3D11_CREATE_DEVICE_DEBUG;
+            hr = D3D11CreateDevice(
+                adapter,
+                D3D_DRIVER_TYPE_UNKNOWN,
+                nullptr,
+                flags,
+                levels,
+                static_cast<UINT>(std::size(levels)),
+                D3D11_SDK_VERSION,
+                &device,
+                &selectedLevel,
+                &context);
+        }
 #endif
 
-    if (FAILED(hr)) {
-        return rillshot::core::Status::failure("dxgi-create-device-failed", hrMessage("D3D11CreateDevice", hr));
-    }
+        if (FAILED(hr)) {
+            return rillshot::core::Status::failure("dxgi-create-device-failed", hrMessage("D3D11CreateDevice", hr));
+        }
 
-    ComPtr<IDXGIOutput1> output1;
-    hr = output->QueryInterface(IID_PPV_ARGS(&output1));
-    if (FAILED(hr)) {
-        return rillshot::core::Status::failure("dxgi-output1-failed", hrMessage("IDXGIOutput1 QI", hr));
-    }
+        ComPtr<IDXGIOutput1> output1;
+        hr = output->QueryInterface(IID_PPV_ARGS(&output1));
+        if (FAILED(hr)) {
+            return rillshot::core::Status::failure("dxgi-output1-failed", hrMessage("IDXGIOutput1 QI", hr));
+        }
 
-    ComPtr<IDXGIOutputDuplication> duplication;
-    hr = output1->DuplicateOutput(device.Get(), &duplication);
-    if (FAILED(hr)) {
-        return rillshot::core::Status::failure("dxgi-duplicate-output-failed", hrMessage("DuplicateOutput", hr));
+        hr = output1->DuplicateOutput(device.Get(), &duplication);
+        if (FAILED(hr)) {
+            return rillshot::core::Status::failure("dxgi-duplicate-output-failed", hrMessage("DuplicateOutput", hr));
+        }
+        state.output = output;
+        state.description = outputDesc;
+        state.region = region;
+        ++statistics.deviceInitializations;
     }
 
     DXGI_OUTDUPL_FRAME_INFO frameInfo{};
     ComPtr<IDXGIResource> desktopResource;
-    hr = duplication->AcquireNextFrame(700, &frameInfo, &desktopResource);
-    if (FAILED(hr)) {
+    // An unchanged desktop is a valid stabilization sample. Reuse our own ROI
+    // staging copy rather than block for 700 ms or return a timeout failure.
+    // The first sample has no cached pixels and gets a bounded 100 ms wait.
+    hr = duplication->AcquireNextFrame(state.hasPixels ? 0U : 100U, &frameInfo, &desktopResource);
+    const bool newFrame = SUCCEEDED(hr);
+    if (hr == DXGI_ERROR_WAIT_TIMEOUT && state.hasPixels) {
+        ++statistics.unchangedFrames;
+    } else if (FAILED(hr)) {
         return rillshot::core::Status::failure("dxgi-acquire-frame-failed", hrMessage("AcquireNextFrame", hr));
     }
-    const AcquiredFrameGuard acquiredFrame(duplication.Get());
+    const AcquiredFrameGuard acquiredFrame(newFrame ? duplication.Get() : nullptr);
 
-    ComPtr<ID3D11Texture2D> acquiredTexture;
-    hr = desktopResource->QueryInterface(IID_PPV_ARGS(&acquiredTexture));
-    if (FAILED(hr)) {
-        return rillshot::core::Status::failure("dxgi-texture-qi-failed", hrMessage("QueryInterface(ID3D11Texture2D)", hr));
+    if (newFrame) {
+        ++statistics.framesAcquired;
+
+        ComPtr<ID3D11Texture2D> acquiredTexture;
+        hr = desktopResource->QueryInterface(IID_PPV_ARGS(&acquiredTexture));
+        if (FAILED(hr)) {
+            return rillshot::core::Status::failure("dxgi-texture-qi-failed", hrMessage("QueryInterface(ID3D11Texture2D)", hr));
+        }
+
+        D3D11_TEXTURE2D_DESC desc{};
+        acquiredTexture->GetDesc(&desc);
+        if (desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM) {
+            return rillshot::core::Status::failure(
+                "dxgi-unexpected-frame-format",
+                "desktop duplication returned an unexpected pixel format");
+        }
+
+        const auto relativeX =
+            static_cast<std::int64_t>(region.x) -
+            static_cast<std::int64_t>(outputDesc.DesktopCoordinates.left);
+        const auto relativeY =
+            static_cast<std::int64_t>(region.y) -
+            static_cast<std::int64_t>(outputDesc.DesktopCoordinates.top);
+        const auto relativeRight = relativeX + static_cast<std::int64_t>(region.width);
+        const auto relativeBottom = relativeY + static_cast<std::int64_t>(region.height);
+        if (relativeX < 0 || relativeY < 0 ||
+            relativeRight > static_cast<std::int64_t>(desc.Width) ||
+            relativeBottom > static_cast<std::int64_t>(desc.Height)) {
+            return rillshot::core::Status::failure(
+                "dxgi-frame-bounds-mismatch",
+                "capture region does not fit the acquired desktop texture");
+        }
+
+        D3D11_TEXTURE2D_DESC stagingDesc = desc;
+        // Only the selected capture rectangle is read by the CPU. Keeping the
+        // staging texture region-sized avoids copying and mapping the rest of a
+        // 4K/8K desktop for every stabilization sample.
+        stagingDesc.Width = static_cast<UINT>(region.width);
+        stagingDesc.Height = static_cast<UINT>(region.height);
+        stagingDesc.MipLevels = 1;
+        stagingDesc.ArraySize = 1;
+        stagingDesc.SampleDesc.Count = 1;
+        stagingDesc.SampleDesc.Quality = 0;
+        stagingDesc.Usage = D3D11_USAGE_STAGING;
+        stagingDesc.BindFlags = 0;
+        stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        stagingDesc.MiscFlags = 0;
+
+        if (!staging) {
+            hr = device->CreateTexture2D(&stagingDesc, nullptr, &staging);
+            if (FAILED(hr)) {
+                return rillshot::core::Status::failure("dxgi-create-staging-failed", hrMessage("CreateTexture2D(staging)", hr));
+            }
+            ++statistics.stagingAllocations;
+        }
+
+        const D3D11_BOX sourceBox{
+            static_cast<UINT>(relativeX),
+            static_cast<UINT>(relativeY),
+            0,
+            static_cast<UINT>(relativeRight),
+            static_cast<UINT>(relativeBottom),
+            1};
+        context->CopySubresourceRegion(
+            staging.Get(), 0, 0, 0, 0,
+            acquiredTexture.Get(), 0, &sourceBox);
     }
-
-    D3D11_TEXTURE2D_DESC desc{};
-    acquiredTexture->GetDesc(&desc);
-    if (desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM) {
-        return rillshot::core::Status::failure(
-            "dxgi-unexpected-frame-format",
-            "desktop duplication returned an unexpected pixel format");
-    }
-
-    const auto relativeX =
-        static_cast<std::int64_t>(region.x) -
-        static_cast<std::int64_t>(outputDesc.DesktopCoordinates.left);
-    const auto relativeY =
-        static_cast<std::int64_t>(region.y) -
-        static_cast<std::int64_t>(outputDesc.DesktopCoordinates.top);
-    const auto relativeRight = relativeX + static_cast<std::int64_t>(region.width);
-    const auto relativeBottom = relativeY + static_cast<std::int64_t>(region.height);
-    if (relativeX < 0 || relativeY < 0 ||
-        relativeRight > static_cast<std::int64_t>(desc.Width) ||
-        relativeBottom > static_cast<std::int64_t>(desc.Height)) {
-        return rillshot::core::Status::failure(
-            "dxgi-frame-bounds-mismatch",
-            "capture region does not fit the acquired desktop texture");
-    }
-
-    D3D11_TEXTURE2D_DESC stagingDesc = desc;
-    // Only the selected capture rectangle is read by the CPU. Keeping the
-    // staging texture region-sized avoids copying and mapping the rest of a
-    // 4K/8K desktop for every stabilization sample.
-    stagingDesc.Width = static_cast<UINT>(region.width);
-    stagingDesc.Height = static_cast<UINT>(region.height);
-    stagingDesc.MipLevels = 1;
-    stagingDesc.ArraySize = 1;
-    stagingDesc.SampleDesc.Count = 1;
-    stagingDesc.SampleDesc.Quality = 0;
-    stagingDesc.Usage = D3D11_USAGE_STAGING;
-    stagingDesc.BindFlags = 0;
-    stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    stagingDesc.MiscFlags = 0;
-
-    ComPtr<ID3D11Texture2D> staging;
-    hr = device->CreateTexture2D(&stagingDesc, nullptr, &staging);
-    if (FAILED(hr)) {
-        return rillshot::core::Status::failure("dxgi-create-staging-failed", hrMessage("CreateTexture2D(staging)", hr));
-    }
-
-    const D3D11_BOX sourceBox{
-        static_cast<UINT>(relativeX),
-        static_cast<UINT>(relativeY),
-        0,
-        static_cast<UINT>(relativeRight),
-        static_cast<UINT>(relativeBottom),
-        1};
-    context->CopySubresourceRegion(
-        staging.Get(), 0, 0, 0, 0,
-        acquiredTexture.Get(), 0, &sourceBox);
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     hr = context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped);
@@ -245,6 +281,7 @@ rillshot::core::Status captureFromOutput(
     }
 
     out.image = std::move(image);
+    state.hasPixels = true;
     out.backendName = "DXGI";
     out.unstable = false;
     out.capturedAt = std::chrono::steady_clock::now();
@@ -253,9 +290,31 @@ rillshot::core::Status captureFromOutput(
 
 } // namespace
 
+DxgiCaptureBackend::DxgiCaptureBackend() = default;
+DxgiCaptureBackend::~DxgiCaptureBackend() = default;
+
 rillshot::core::Status DxgiCaptureBackend::capture(const rillshot::core::RectI& region, CaptureFrame& out) {
     if (!region.isValid()) {
         return rillshot::core::Status::failure("invalid-region", "capture region must be positive");
+    }
+
+    if (state_) {
+        DXGI_OUTPUT_DESC description{};
+        const auto& old = state_->description.DesktopCoordinates;
+        const bool sameRegion = region.x == state_->region.x && region.y == state_->region.y &&
+            region.width == state_->region.width && region.height == state_->region.height;
+        if (sameRegion && SUCCEEDED(state_->output->GetDesc(&description)) &&
+            description.AttachedToDesktop && description.Rotation == state_->description.Rotation &&
+            description.DesktopCoordinates.left == old.left && description.DesktopCoordinates.top == old.top &&
+            description.DesktopCoordinates.right == old.right && description.DesktopCoordinates.bottom == old.bottom) {
+            auto status = captureFromOutput(*state_, statistics_, nullptr,
+                state_->output.Get(), description, region, out);
+            // Access-lost/device errors invalidate cached pixels. Auto mode
+            // can use GDI for this sample and reinitialize DXGI next time.
+            if (!status.ok) state_.reset();
+            return status;
+        }
+        state_.reset();
     }
 
     ComPtr<IDXGIFactory1> factory;
@@ -299,8 +358,10 @@ rillshot::core::Status DxgiCaptureBackend::capture(const rillshot::core::RectI& 
                 continue;
             }
 
-            auto status = captureFromOutput(adapter.Get(), output.Get(), outputDesc, region, out);
+            auto candidate = std::make_unique<DxgiCaptureState>();
+            auto status = captureFromOutput(*candidate, statistics_, adapter.Get(), output.Get(), outputDesc, region, out);
             if (status.ok) {
+                state_ = std::move(candidate);
                 return status;
             }
             lastFailure = status;

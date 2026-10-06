@@ -89,16 +89,10 @@ rillshot::core::Image StitchedImageBuilder::materialize() const {
 
     rillshot::core::Image output(width_, height_);
     int outputY = 0;
-    if (direction_ == rillshot::core::ScrollDirection::Down) {
-        for (const auto& chunk : chunks_) {
-            copyChunk(chunk, output, outputY);
-        }
-    } else {
-        for (auto iterator = chunks_.rbegin();
-             iterator != chunks_.rend(); ++iterator) {
-            copyChunk(*iterator, output, outputY);
-        }
-    }
+    visitChunks([&](const auto& chunk) {
+        copyChunk(chunk, output, outputY);
+        return true;
+    });
     return output;
 }
 

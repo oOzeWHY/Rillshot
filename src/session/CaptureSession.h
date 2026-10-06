@@ -48,8 +48,8 @@ struct CaptureSessionOptions {
     int ignoreBottomPx = 0;
     double hardStitchConfidenceFloor = 0.30;
     // Bounds the assembled image buffer before growth. Temporary working
-    // allocations can add overhead. WIC accepts a UINT byte count, so larger
-    // final buffers could never be encoded by this release.
+    // allocations can add overhead. The encoder streams chunks directly;
+    // saving/checkpointing no longer duplicates the complete assembled image.
     std::uint64_t maxAssembledImageBytes = defaultMaxAssembledImageBytes;
     bool stopOnLowConfidenceSeams = true;
     // An orderly stop writes the latest assembled image to outPath. Periodic

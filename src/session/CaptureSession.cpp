@@ -412,19 +412,15 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
                 options.partialCheckpointMaxIntervalMs)) {
             const auto checkpointStarted = std::chrono::steady_clock::now();
             Status partialStatus;
-            long long materializeElapsedMs = 0;
+            // Retain the existing diagnostic field for log consumers.
+            constexpr long long materializeElapsedMs = 0;
             long long encodeElapsedMs = 0;
             try {
-                const auto materializeStarted =
-                    std::chrono::steady_clock::now();
-                const auto checkpointImage = assembled.materialize();
-                materializeElapsedMs =
-                    elapsedMilliseconds(materializeStarted);
                 const auto encodeStarted =
                     std::chrono::steady_clock::now();
                 partialStatus = writeImageNoThrow(
                     writer,
-                    checkpointImage,
+                    assembled,
                     partialPathFor(options.outPath),
                     ImageFormat::Png,
                     mayOverwritePartialCheckpoint(
@@ -432,13 +428,13 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
                 encodeElapsedMs = elapsedMilliseconds(encodeStarted);
             } catch (const std::exception& ex) {
                 partialStatus = Status::failure(
-                    "partial-materialize-failed",
-                    std::string("could not materialize recovery checkpoint: ") +
+                    "partial-stream-failed",
+                    std::string("could not stream recovery checkpoint: ") +
                         ex.what());
             } catch (...) {
                 partialStatus = Status::failure(
-                    "partial-materialize-failed",
-                    "could not materialize recovery checkpoint: unknown exception");
+                    "partial-stream-failed",
+                    "could not stream recovery checkpoint: unknown exception");
             }
             if (!partialStatus.ok) {
                 logger.event(
@@ -493,31 +489,33 @@ CaptureSessionResult CaptureSession::run(const CaptureSessionOptions& options) {
         }
     }
 
+    // Capture is complete and fixed border rows now belong to the builder.
+    // Release the last frame, GPU duplication/staging resources and driver
+    // before final encoding so they do not inflate the save-stage peak.
+    previousFrame = Image{};
+    backends.clear();
+    driver.reset();
     const auto finalWriteStarted = std::chrono::steady_clock::now();
     Status writeStatus;
-    long long finalMaterializeElapsedMs = 0;
+    constexpr long long finalMaterializeElapsedMs = 0;
     long long finalEncodeElapsedMs = 0;
     try {
-        const auto materializeStarted = std::chrono::steady_clock::now();
-        const auto finalImage = assembled.materialize();
-        finalMaterializeElapsedMs =
-            elapsedMilliseconds(materializeStarted);
         const auto encodeStarted = std::chrono::steady_clock::now();
         writeStatus = writeImageNoThrow(
             writer,
-            finalImage,
+            assembled,
             options.outPath,
             formatFromPath(options.outPath),
             options.allowOverwrite);
         finalEncodeElapsedMs = elapsedMilliseconds(encodeStarted);
     } catch (const std::exception& ex) {
         writeStatus = Status::failure(
-            "final-materialize-failed",
-            std::string("could not materialize final image: ") + ex.what());
+            "final-stream-failed",
+            std::string("could not stream final image: ") + ex.what());
     } catch (...) {
         writeStatus = Status::failure(
-            "final-materialize-failed",
-            "could not materialize final image: unknown exception");
+            "final-stream-failed",
+            "could not stream final image: unknown exception");
     }
     if (!writeStatus.ok) {
         result.ok = false;

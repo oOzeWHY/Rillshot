@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -20,6 +21,8 @@ public:
     int calls = 0;
     int changeOnCall = 0;
     int slowOnCall = 0;
+    bool alwaysFail = false;
+    bool alwaysThrow = false;
     bool* cancelOnThird = nullptr;
     std::vector<Clock::time_point> starts;
     std::vector<Clock::time_point> finishes;
@@ -27,6 +30,8 @@ public:
     Status capture(const rillshot::core::RectI&, CaptureFrame& frame) override {
         starts.push_back(Clock::now());
         ++calls;
+        if (alwaysThrow) throw std::runtime_error("test backend exception");
+        if (alwaysFail) return Status::failure("unavailable", "test backend unavailable");
         if (calls == slowOnCall) {
             std::this_thread::sleep_for(std::chrono::milliseconds(80));
         }
@@ -44,6 +49,14 @@ static int runCase(int scenario) {
     std::vector<std::unique_ptr<ICaptureBackend>> backends;
     auto backend = std::make_unique<SequenceBackend>();
     auto* sequence = backend.get();
+    SequenceBackend* failing = nullptr;
+    if (scenario == 5 || scenario == 6) {
+        auto unavailable = std::make_unique<SequenceBackend>();
+        unavailable->alwaysFail = scenario == 5;
+        unavailable->alwaysThrow = scenario == 6;
+        failing = unavailable.get();
+        backends.push_back(std::move(unavailable));
+    }
     bool cancelled = false;
     CaptureSessionOptions options;
     options.region = {0, 0, 64, 48};
@@ -74,6 +87,8 @@ static int runCase(int scenario) {
         status = detail::waitForStableFrame(backends, options, frame, logger, "test");
     }
     std::filesystem::remove(outputPath.wstring() + L".jsonl");
+    if (failing && failing->calls != 1)
+        return fail("healthy fallback was not reused across stabilization samples");
     if (scenario == 3) {
         if (status.ok || status.code != "session-cancelled")
             return fail("cancellation during final capture must win over stability");
@@ -94,7 +109,7 @@ static int runCase(int scenario) {
 }
 
 int main() {
-    for (int scenario = 0; scenario < 5; ++scenario) {
+    for (int scenario = 0; scenario < 7; ++scenario) {
         if (runCase(scenario) != EXIT_SUCCESS) return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

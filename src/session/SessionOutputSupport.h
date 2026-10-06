@@ -4,6 +4,7 @@
 #include "core/Types.h"
 #include "output/WicImageWriter.h"
 #include "session/CaptureSession.h"
+#include "stitch/StitchedImageBuilder.h"
 
 #include <string>
 
@@ -26,5 +27,11 @@ namespace rillshot::session::detail {
     bool allowOverwrite);
 [[nodiscard]] rillshot::core::Status validateOutputCollisionPolicy(
     const CaptureSessionOptions& options);
+[[nodiscard]] rillshot::core::Status writeImageNoThrow(
+    const rillshot::output::WicImageWriter& writer,
+    const rillshot::stitch::StitchedImageBuilder& image,
+    const std::wstring& path,
+    rillshot::output::ImageFormat format,
+    bool allowOverwrite);
 
 } // namespace rillshot::session::detail

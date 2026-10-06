@@ -5,6 +5,8 @@
 
 #include <string>
 
+namespace rillshot::stitch { class StitchedImageBuilder; }
+
 namespace rillshot::output {
 
 enum class ImageFormat {
@@ -16,6 +18,11 @@ class WicImageWriter final {
 public:
     [[nodiscard]] rillshot::core::Status write(
         const rillshot::core::Image& image,
+        const std::wstring& path,
+        ImageFormat format,
+        bool allowOverwrite = false) const;
+    [[nodiscard]] rillshot::core::Status write(
+        const rillshot::stitch::StitchedImageBuilder& image,
         const std::wstring& path,
         ImageFormat format,
         bool allowOverwrite = false) const;
