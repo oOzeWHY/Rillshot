@@ -27,7 +27,11 @@ struct SelectionOverlayTestAccess {
         overlay.virtualScreen_ = {x, y, x + width, y + height};
         overlay.virtualScreenWidth_ = width;
         overlay.virtualScreenHeight_ = height;
-        if (!overlay.captureDesktopSnapshot() || !SelectionOverlay::registerWindowClass()) return false;
+        if (!overlay.captureDesktopSnapshot()) {
+            std::cerr << "desktop snapshot failed, Windows error=" << GetLastError() << '\n';
+            return false;
+        }
+        if (!SelectionOverlay::registerWindowClass()) return false;
         if (!dimOutside && (overlay.dimmedSnapshotBitmap_ || overlay.dimmedSnapshotDc_)) return false;
         const COLORREF outsideOriginal = GetPixel(overlay.snapshotDc_, 14, 14);
         const COLORREF insideOriginal = GetPixel(overlay.snapshotDc_, 100, 90);
@@ -106,6 +110,9 @@ static int checkPreferences() {
     } cleanup{path, directoryExisted};
     if (!UserPreferences{}.dimOutsideCapture || !loadUserPreferences().dimOutsideCapture)
         return fail("lower outside brightness must default on with no configuration");
+    if (UserPreferences{}.windowBackground != WindowBackgroundPreference::Solid ||
+        loadUserPreferences().windowBackground != WindowBackgroundPreference::Solid)
+        return fail("window background must default to an opaque solid surface");
     auto preferences = loadUserPreferences();
     preferences.dimOutsideCapture = false;
     if (!saveUserPreferences(preferences) || loadUserPreferences().dimOutsideCapture)
@@ -113,6 +120,20 @@ static int checkPreferences() {
     preferences.dimOutsideCapture = true;
     if (!saveUserPreferences(preferences) || !loadUserPreferences().dimOutsideCapture)
         return fail("an enabled brightness preference did not survive reload");
+    preferences.windowBackground = WindowBackgroundPreference::SystemMaterial;
+    if (!saveUserPreferences(preferences) ||
+        loadUserPreferences().windowBackground != WindowBackgroundPreference::SystemMaterial)
+        return fail("system material preference did not survive reload");
+    preferences.windowBackground = WindowBackgroundPreference::Solid;
+    if (!saveUserPreferences(preferences) ||
+        loadUserPreferences().windowBackground != WindowBackgroundPreference::Solid)
+        return fail("solid background preference did not survive reload");
+    WritePrivateProfileStringW(L"appearance", L"windowBackground", L"999", path.c_str());
+    if (loadUserPreferences().windowBackground != WindowBackgroundPreference::Solid)
+        return fail("invalid background preference must fall back to opaque solid");
+    WritePrivateProfileStringW(L"appearance", L"windowBackground", nullptr, path.c_str());
+    if (loadUserPreferences().windowBackground != WindowBackgroundPreference::Solid)
+        return fail("legacy configuration must default to opaque solid");
     WritePrivateProfileStringW(L"capture", L"dimOutside", nullptr, path.c_str());
     if (!loadUserPreferences().dimOutsideCapture)
         return fail("legacy configuration without the brightness key must default on");

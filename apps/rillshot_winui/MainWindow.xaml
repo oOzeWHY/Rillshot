@@ -5,10 +5,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Rillshot">
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop Kind="Base"/>
-    </Window.SystemBackdrop>
-
     <Grid
         x:Name="RootGrid"
         Background="Transparent"
@@ -21,6 +17,9 @@
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
+
+        <Border x:Name="WindowBackgroundSurface" Grid.RowSpan="2"
+                Background="{ThemeResource RillshotWindowBackgroundBrush}" IsHitTestVisible="False"/>
 
         <Grid x:Name="AppTitleBar" Padding="0,0,156,0" Background="Transparent" SizeChanged="AppTitleBar_SizeChanged">
             <Grid x:Name="AppTitleBarDragRegion" Padding="16,0,0,0" Background="Transparent">
@@ -452,6 +451,21 @@
                                         <ComboBoxItem Content="跟随系统"/>
                                         <ComboBoxItem Content="浅色"/>
                                         <ComboBoxItem Content="深色"/>
+                                    </ComboBox>
+                                </Grid>
+                                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                                <Grid ColumnSpacing="20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="3" VerticalAlignment="Center">
+                                        <TextBlock Text="窗口背景" Style="{StaticResource SettingTitleStyle}"/>
+                                        <TextBlock Text="纯色不会受后方窗口颜色影响；浅色主题为白色。" Style="{StaticResource QuietTextStyle}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ComboBox x:Name="WindowBackgroundBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="WindowBackground_SelectionChanged" AutomationProperties.Name="窗口背景">
+                                        <ComboBoxItem Content="纯色"/>
+                                        <ComboBoxItem Content="系统材质"/>
                                     </ComboBox>
                                 </Grid>
                                 <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>

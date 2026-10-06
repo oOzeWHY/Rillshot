@@ -53,6 +53,10 @@ UserPreferences loadUserPreferences() noexcept {
         }
         preferences.theme = parseTheme(GetPrivateProfileIntW(
             L"appearance", L"theme", 0, path.c_str()));
+        preferences.windowBackground = GetPrivateProfileIntW(
+            L"appearance", L"windowBackground", 0, path.c_str()) == 1
+            ? WindowBackgroundPreference::SystemMaterial
+            : WindowBackgroundPreference::Solid;
         preferences.dimOutsideCapture = GetPrivateProfileIntW(
             L"capture", L"dimOutside", 1, path.c_str()) != 0;
         preferences.globalHotkeyEnabled = GetPrivateProfileIntW(
@@ -92,6 +96,8 @@ bool saveUserPreferences(const UserPreferences& preferences) noexcept {
                    L"appearance",
                    L"theme",
                    static_cast<std::uint32_t>(themeValue(preferences.theme))) &&
+               writeInteger(path, L"appearance", L"windowBackground",
+                   preferences.windowBackground == WindowBackgroundPreference::SystemMaterial ? 1U : 0U) &&
                writeInteger(path, L"capture", L"dimOutside",
                    preferences.dimOutsideCapture ? 1U : 0U) &&
                writeInteger(

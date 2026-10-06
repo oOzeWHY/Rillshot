@@ -80,6 +80,9 @@ struct MainWindow : MainWindowT<MainWindow> {
     void Theme_SelectionChanged(
         winrt::Windows::Foundation::IInspectable const& sender,
         Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& eventArgs);
+    void WindowBackground_SelectionChanged(
+        winrt::Windows::Foundation::IInspectable const& sender,
+        Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& eventArgs);
     void GlobalHotkey_Toggled(
         winrt::Windows::Foundation::IInspectable const& sender,
         Microsoft::UI::Xaml::RoutedEventArgs const& eventArgs);
@@ -125,6 +128,7 @@ private:
     void initializePreferences();
     void initializePreferencePersistence();
     void applyThemePreference();
+    void applyWindowBackground();
     void queueThemePreferenceApply();
     void queuePreferenceSave() noexcept;
     void completePreferenceSave(std::uint64_t generation, bool saved) noexcept;

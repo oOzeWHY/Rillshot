@@ -10,8 +10,14 @@ enum class ThemePreference {
     Dark
 };
 
+enum class WindowBackgroundPreference {
+    Solid,
+    SystemMaterial
+};
+
 struct UserPreferences {
     ThemePreference theme = ThemePreference::System;
+    WindowBackgroundPreference windowBackground = WindowBackgroundPreference::Solid;
     bool dimOutsideCapture = true;
     bool globalHotkeyEnabled = true;
     rillshot::gui::HotkeyBinding globalHotkey{};

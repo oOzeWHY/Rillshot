@@ -71,6 +71,9 @@ void MainWindow::initializePreferences() {
         break;
     }
     GlobalHotkeySwitch().IsOn(preferences_.globalHotkeyEnabled);
+    WindowBackgroundBox().SelectedIndex(
+        preferences_.windowBackground ==
+            rillshot::platform::WindowBackgroundPreference::SystemMaterial ? 1 : 0);
     DimOutsideCaptureSwitch().IsOn(preferences_.dimOutsideCapture);
     HotkeyBox().Text(rillshot::gui::formatHotkeyBinding(
         preferences_.globalHotkey));
@@ -124,6 +127,21 @@ void MainWindow::applyThemePreference() {
         break;
     }
     RootGrid().RequestedTheme(theme);
+    applyWindowBackground();
+}
+
+void MainWindow::applyWindowBackground() {
+    const bool systemMaterial = preferences_.windowBackground ==
+        rillshot::platform::WindowBackgroundPreference::SystemMaterial;
+    if (systemMaterial) {
+        if (!SystemBackdrop()) {
+            SystemBackdrop(Microsoft::UI::Xaml::Media::MicaBackdrop{});
+        }
+        WindowBackgroundSurface().Visibility(Visibility::Collapsed);
+    } else {
+        WindowBackgroundSurface().Visibility(Visibility::Visible);
+        SystemBackdrop(nullptr);
+    }
 }
 
 void MainWindow::queueThemePreferenceApply() {
@@ -234,9 +252,21 @@ void MainWindow::Theme_SelectionChanged(
 void MainWindow::DimOutsideCapture_Toggled(
     [[maybe_unused]] IInspectable const& sender,
     [[maybe_unused]] RoutedEventArgs const& eventArgs) {
-    if (!initialized_ || applyingPreferences_) return;
+    if (!initialized_ || applyingPreferences_) {
+        return;
+    }
     preferences_.dimOutsideCapture = DimOutsideCaptureSwitch().IsOn();
     queuePreferenceSave();
+}
+
+void MainWindow::WindowBackground_SelectionChanged(
+    [[maybe_unused]] IInspectable const& sender,
+    [[maybe_unused]] SelectionChangedEventArgs const& eventArgs) {
+    if (!initialized_ || applyingPreferences_) return;
+    preferences_.windowBackground = WindowBackgroundBox().SelectedIndex() == 1
+        ? rillshot::platform::WindowBackgroundPreference::SystemMaterial
+        : rillshot::platform::WindowBackgroundPreference::Solid;
+    queueThemePreferenceApply();
 }
 
 void MainWindow::GlobalHotkey_Toggled(
