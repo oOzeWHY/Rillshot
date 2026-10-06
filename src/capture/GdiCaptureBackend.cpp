@@ -12,6 +12,15 @@ rillshot::core::Status GdiCaptureBackend::capture(const rillshot::core::RectI& r
         return rillshot::core::Status::failure("invalid-region", "capture region must be positive");
     }
 
+    const rillshot::core::RectI desktop{
+        GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN),
+        GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN)};
+    if (!desktop.isValid() || region.x < desktop.x || region.y < desktop.y ||
+        region.right() > desktop.right() || region.bottom() > desktop.bottom()) {
+        return rillshot::core::Status::failure("gdi-region-outside-desktop",
+            "capture region must fit inside the virtual desktop");
+    }
+
     // Allocate before acquiring GDI handles so an allocation exception cannot
     // strand a screen DC, memory DC, or bitmap.
     rillshot::core::Image image(region.width, region.height);

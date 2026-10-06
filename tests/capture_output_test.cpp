@@ -1,6 +1,7 @@
 #include "TestSupport.h"
 #include "StitchTestFixtures.h"
 #include "gui/CaptureDimmer.h"
+#include "capture/GdiCaptureBackend.h"
 #include "output/WicImageWriter.h"
 #include "stitch/StitchedImageBuilder.h"
 
@@ -9,6 +10,7 @@
 #include <wrl/client.h>
 #include <algorithm>
 #include <filesystem>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -91,6 +93,17 @@ static int testDimmerBoundaryAndCleanup() {
     const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
     const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
     if (width < 32 || height < 32) return fail("test desktop is unavailable");
+    rillshot::capture::GdiCaptureBackend gdi;
+    rillshot::capture::CaptureFrame rejected;
+    // This mathematically valid rectangle would allocate ~512 MiB before
+    // discovering that its rows are outside any screen in the old backend.
+    const auto oversized = gdi.capture(
+        {x, y, 1, (std::numeric_limits<int>::max)() / 16}, rejected);
+    const auto clipped = gdi.capture({x + width - 1, y, 2, 16}, rejected);
+    if (oversized.ok || oversized.code != "gdi-region-outside-desktop" ||
+        clipped.ok || clipped.code != "gdi-region-outside-desktop" || !rejected.image.empty()) {
+        return fail("GDI allocated/captured an out-of-desktop rectangle");
+    }
     const rillshot::core::RectI capture{x + 8, y + 8, width - 16, height - 16};
     const HWND foreground = GetForegroundWindow();
     rillshot::gui::CaptureDimmer dimmer;

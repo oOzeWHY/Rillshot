@@ -147,7 +147,7 @@ void MainWindow::StartCapture_Click(
         showInfo(
             InfoBarSeverity::Error,
             L"无法准备截图环境",
-            L"主窗口无法隐藏或区域外调暗无法启用。请关闭调暗选项后重试。");
+            L"主窗口无法隐藏或区域外调暗无法启用。请重新选择屏幕内的区域，或关闭调暗选项后重试。");
         ResetButton().Focus(FocusState::Programmatic);
         return;
     }
