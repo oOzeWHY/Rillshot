@@ -168,9 +168,3 @@ ctest --test-dir out/build/core-msvc -C Release --output-on-failure
 ## 许可证
 
 除第三方文件或另有标注外，Rillshot 社区版采用 [`GPL-3.0-only`](LICENSE) 许可证。分发二进制时还应遵守 [对应源码说明](SOURCE_OFFER.md) 和 [第三方通知](THIRD_PARTY_NOTICES.txt)。商业授权信息见 [商业许可说明](COMMERCIAL-LICENSE.md)，名称和图形标志的使用规则见 [商标说明](TRADEMARKS.md)。
-
-## 开发候选的性能改进
-
-1.2.1 的本轮改动与实测口径见 [算法与滚动效率复审](PERFORMANCE-REVIEW-ZH.md)。相同画面的周期保护使用精确行 KMP；滚轮和键盘不再重复等待最后一个事件，稳定采样扣除已用于统计、比较和日志的时间。默认 120 ms 最小等待、50 ms 采样间隔和两次连续稳定比较保持不变。
-
-缩短冗余等待不代表可以任意减小稳定参数；平滑滚动或迟滞页面仍可能需要更长等待。当前开发候选已通过核心及 Windows 模拟后端回归，WinUI 和真实页面端到端验收仍待完成。
